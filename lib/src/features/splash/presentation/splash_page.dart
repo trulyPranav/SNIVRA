@@ -6,6 +6,7 @@ import '../../auth/data/auth_models.dart';
 import '../../auth/presentation/login_page.dart';
 import '../../home/presentation/home_page.dart';
 import '../../saloon_setup/presentation/saloon_setup_page.dart';
+import '../../saloon/data/saloon_repository.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -25,17 +26,27 @@ class _SplashPageState extends State<SplashPage> {
 
   Future<void> _bootstrap() async {
     final authRepository = context.read<AuthRepository>();
+    final saloonRepository = context.read<SaloonRepository>();
     final hasTokenFuture = authRepository.initializeSession();
 
     await Future<void>.delayed(const Duration(milliseconds: 1300));
     final hasToken = await hasTokenFuture;
     AuthUser? currentUser;
+    String? activeSaloonId;
 
     if (hasToken) {
       try {
         currentUser = await authRepository.getCurrentUser();
+        activeSaloonId = await saloonRepository.readActiveSaloonId();
+        if ((activeSaloonId == null || activeSaloonId.isEmpty) && currentUser.saloons.isNotEmpty) {
+          activeSaloonId = currentUser.saloons.first.id;
+          if (activeSaloonId.isNotEmpty) {
+            await saloonRepository.saveActiveSaloonId(activeSaloonId);
+          }
+        }
       } catch (_) {
         await authRepository.clearToken();
+        await saloonRepository.clearActiveSaloonId();
       }
     }
 
@@ -52,7 +63,7 @@ class _SplashPageState extends State<SplashPage> {
           if (currentUser.role == 'CUSTOMER') {
             return SaloonSetupPage(currentUser: currentUser);
           }
-          return HomePage(currentUser: currentUser);
+          return HomePage(currentUser: currentUser, activeSaloonId: activeSaloonId);
         },
       ),
     );

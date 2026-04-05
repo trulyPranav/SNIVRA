@@ -1,5 +1,28 @@
 import 'package:equatable/equatable.dart';
 
+class AuthSaloon extends Equatable {
+  const AuthSaloon({
+    required this.id,
+    required this.name,
+    this.saloonHashCode,
+  });
+
+  final String id;
+  final String name;
+  final String? saloonHashCode;
+
+  factory AuthSaloon.fromJson(Map<String, dynamic> json) {
+    return AuthSaloon(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      saloonHashCode: json['hash_code']?.toString(),
+    );
+  }
+
+  @override
+  List<Object?> get props => [id, name, saloonHashCode];
+}
+
 class AuthUser extends Equatable {
   const AuthUser({
     required this.id,
@@ -7,6 +30,7 @@ class AuthUser extends Equatable {
     required this.name,
     required this.role,
     this.isActive,
+    this.saloons = const [],
   });
 
   final String id;
@@ -14,19 +38,25 @@ class AuthUser extends Equatable {
   final String name;
   final String role;
   final bool? isActive;
+  final List<AuthSaloon> saloons;
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
+    final saloonsJson = (json['saloons'] as List?) ?? const [];
     return AuthUser(
       id: json['id']?.toString() ?? '',
       phone: json['phone']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       role: json['role']?.toString() ?? 'CUSTOMER',
       isActive: json['is_active'] as bool?,
+      saloons: saloonsJson
+          .whereType<Map>()
+          .map((item) => AuthSaloon.fromJson(item.cast<String, dynamic>()))
+          .toList(growable: false),
     );
   }
 
   @override
-  List<Object?> get props => [id, phone, name, role, isActive];
+  List<Object?> get props => [id, phone, name, role, isActive, saloons];
 }
 
 class LoginRequest extends Equatable {

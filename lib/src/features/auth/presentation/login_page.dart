@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../data/auth_models.dart';
+import '../../home/presentation/home_page.dart';
+import '../../saloon/data/saloon_repository.dart';
 import '../../saloon_setup/presentation/saloon_setup_page.dart';
 import 'bloc/auth_bloc.dart';
 
@@ -14,7 +16,7 @@ class LoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocListener<AuthBloc, AuthState>(
       listenWhen: (previous, current) => previous.status != current.status || previous.errorMessage != current.errorMessage,
-      listener: (context, state) {
+      listener: (context, state) async {
         final messenger = ScaffoldMessenger.of(context);
         messenger.clearSnackBars();
 
@@ -44,9 +46,29 @@ class LoginPage extends StatelessWidget {
             ),
           );
 
+          final user = state.session!.user;
+          String? activeSaloonId;
+
+          if (user.role != 'CUSTOMER') {
+            final saloonRepository = context.read<SaloonRepository>();
+            activeSaloonId = await saloonRepository.readActiveSaloonId();
+            if ((activeSaloonId == null || activeSaloonId.isEmpty) && user.saloons.isNotEmpty) {
+              activeSaloonId = user.saloons.first.id;
+              if (activeSaloonId.isNotEmpty) {
+                await saloonRepository.saveActiveSaloonId(activeSaloonId);
+              }
+            }
+          }
+
+          if (!context.mounted) {
+            return;
+          }
+
           Navigator.of(context).pushReplacement(
             MaterialPageRoute<void>(
-              builder: (_) => SaloonSetupPage(currentUser: state.session!.user),
+              builder: (_) => user.role == 'CUSTOMER'
+                  ? SaloonSetupPage(currentUser: user)
+                  : HomePage(currentUser: user, activeSaloonId: activeSaloonId),
             ),
           );
         }

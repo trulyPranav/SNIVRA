@@ -85,21 +85,23 @@ class _SaloonSetupPageState extends State<SaloonSetupPage> {
     }
   }
 
-  Future<void> _goToShellAfterSaloonAction() async {
+  Future<void> _goToShellAfterSaloonAction(String saloonId) async {
     final authRepository = context.read<AuthRepository>();
+    final saloonRepository = context.read<SaloonRepository>();
     final refreshedUser = await authRepository.getCurrentUser();
+    await saloonRepository.saveActiveSaloonId(saloonId);
 
     if (!mounted) {
       return;
     }
 
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => HomePage(currentUser: refreshedUser)),
+      MaterialPageRoute<void>(builder: (_) => HomePage(currentUser: refreshedUser, activeSaloonId: saloonId)),
       (route) => false,
     );
   }
 
-  Widget _buildCreateTab(SaloonActionState state) {
+  Widget _buildCreateTab(BuildContext actionContext, SaloonActionState state) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -150,7 +152,7 @@ class _SaloonSetupPageState extends State<SaloonSetupPage> {
               onPressed: state.isLoading
                   ? null
                   : () {
-                      context.read<SaloonActionCubit>().createSaloon(
+                      actionContext.read<SaloonActionCubit>().createSaloon(
                             creationCode: creationCodeController.text,
                             name: nameController.text,
                             locationName: locationNameController.text,
@@ -172,7 +174,7 @@ class _SaloonSetupPageState extends State<SaloonSetupPage> {
     );
   }
 
-  Widget _buildJoinTab(SaloonActionState state) {
+  Widget _buildJoinTab(BuildContext actionContext, SaloonActionState state) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -187,7 +189,7 @@ class _SaloonSetupPageState extends State<SaloonSetupPage> {
               onPressed: state.isLoading
                   ? null
                   : () {
-                      context.read<SaloonActionCubit>().joinSaloon(hashCode: hashCodeController.text);
+                      actionContext.read<SaloonActionCubit>().joinSaloon(hashCode: hashCodeController.text);
                     },
               child: const Text('Join Saloon'),
             ),
@@ -213,7 +215,12 @@ class _SaloonSetupPageState extends State<SaloonSetupPage> {
 
           if (state.status == SaloonActionStatus.success && state.successMessage != null) {
             messenger.showSnackBar(SnackBar(content: Text(state.successMessage!)));
-            await _goToShellAfterSaloonAction();
+            final saloonId = state.saloon?.id;
+            if (saloonId == null || saloonId.isEmpty) {
+              messenger.showSnackBar(const SnackBar(content: Text('Saloon created, but no saloon id was returned.')));
+              return;
+            }
+            await _goToShellAfterSaloonAction(saloonId);
           }
         },
         child: Scaffold(
@@ -309,7 +316,7 @@ class _SaloonSetupPageState extends State<SaloonSetupPage> {
                   builder: (context, state) {
                     return AnimatedSwitcher(
                       duration: const Duration(milliseconds: 200),
-                      child: _activeTabIndex == 0 ? _buildCreateTab(state) : _buildJoinTab(state),
+                      child: _activeTabIndex == 0 ? _buildCreateTab(context, state) : _buildJoinTab(context, state),
                     );
                   },
                 ),
