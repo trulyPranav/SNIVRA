@@ -46,7 +46,7 @@ class LoginPage extends StatelessWidget {
 
           Navigator.of(context).pushReplacement(
             MaterialPageRoute<void>(
-              builder: (_) => const HomePage(),
+              builder: (_) => HomePage(currentUser: state.session!.user),
             ),
           );
         }

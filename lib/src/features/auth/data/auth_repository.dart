@@ -24,6 +24,15 @@ class AuthRepository {
     return true;
   }
 
+  Future<AuthUser> getCurrentUser() async {
+    try {
+      final json = await _apiClient.getJson('/users/me', requiresAuth: true);
+      return AuthUser.fromJson((json['user'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{});
+    } on ApiException catch (error) {
+      throw error.toApiError();
+    }
+  }
+
   Future<LoginResponse> login({required String phone, String? name}) async {
     try {
       return await _remoteDataSource.login(LoginRequest(phone: phone, name: name));

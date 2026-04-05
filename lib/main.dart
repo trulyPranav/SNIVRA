@@ -4,29 +4,40 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'src/core/network/api_client.dart';
 import 'src/features/auth/data/auth_repository.dart';
 import 'src/features/auth/presentation/bloc/auth_bloc.dart';
+import 'src/features/saloon/data/saloon_repository.dart';
 import 'src/features/splash/presentation/splash_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   final apiClient = ApiClient();
   final authRepository = AuthRepository(apiClient: apiClient);
+  final saloonRepository = SaloonRepository(apiClient: apiClient);
 
   runApp(
     SNIVRAApp(
       authRepository: authRepository,
+      saloonRepository: saloonRepository,
     ),
   );
 }
 
 class SNIVRAApp extends StatelessWidget {
-  const SNIVRAApp({super.key, required this.authRepository});
+  const SNIVRAApp({
+    super.key,
+    required this.authRepository,
+    required this.saloonRepository,
+  });
 
   final AuthRepository authRepository;
+  final SaloonRepository saloonRepository;
 
   @override
   Widget build(BuildContext context) {
-    return RepositoryProvider.value(
-      value: authRepository,
+    return MultiRepositoryProvider(
+      providers: [
+        RepositoryProvider.value(value: authRepository),
+        RepositoryProvider.value(value: saloonRepository),
+      ],
       child: BlocProvider(
         create: (_) => AuthBloc(authRepository: authRepository),
         child: MaterialApp(

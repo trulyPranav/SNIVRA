@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../auth/data/auth_repository.dart';
+import '../../auth/data/auth_models.dart';
 import '../../auth/presentation/login_page.dart';
 import '../../home/presentation/home_page.dart';
 
@@ -27,6 +28,15 @@ class _SplashPageState extends State<SplashPage> {
 
     await Future<void>.delayed(const Duration(milliseconds: 1300));
     final hasToken = await hasTokenFuture;
+    AuthUser? currentUser;
+
+    if (hasToken) {
+      try {
+        currentUser = await authRepository.getCurrentUser();
+      } catch (_) {
+        await authRepository.clearToken();
+      }
+    }
 
     if (!mounted) {
       return;
@@ -34,7 +44,7 @@ class _SplashPageState extends State<SplashPage> {
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) => hasToken ? const HomePage() : const LoginPage(),
+        builder: (_) => currentUser != null ? HomePage(currentUser: currentUser) : const LoginPage(),
       ),
     );
   }
