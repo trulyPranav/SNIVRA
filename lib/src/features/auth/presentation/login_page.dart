@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../data/auth_models.dart';
-import '../../home/presentation/home_page.dart';
+import '../../saloon_setup/presentation/saloon_setup_page.dart';
 import 'bloc/auth_bloc.dart';
 
 class LoginPage extends StatelessWidget {
@@ -46,7 +46,7 @@ class LoginPage extends StatelessWidget {
 
           Navigator.of(context).pushReplacement(
             MaterialPageRoute<void>(
-              builder: (_) => HomePage(currentUser: state.session!.user),
+              builder: (_) => SaloonSetupPage(currentUser: state.session!.user),
             ),
           );
         }

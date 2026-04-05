@@ -5,6 +5,7 @@ import '../../auth/data/auth_repository.dart';
 import '../../auth/data/auth_models.dart';
 import '../../auth/presentation/login_page.dart';
 import '../../home/presentation/home_page.dart';
+import '../../saloon_setup/presentation/saloon_setup_page.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -44,7 +45,15 @@ class _SplashPageState extends State<SplashPage> {
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) => currentUser != null ? HomePage(currentUser: currentUser) : const LoginPage(),
+        builder: (_) {
+          if (currentUser == null) {
+            return const LoginPage();
+          }
+          if (currentUser.role == 'CUSTOMER') {
+            return SaloonSetupPage(currentUser: currentUser);
+          }
+          return HomePage(currentUser: currentUser);
+        },
       ),
     );
   }
