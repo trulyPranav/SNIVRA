@@ -45,3 +45,7 @@ class AuthOtpSubmitted extends AuthEvent {
 class AuthResetRequested extends AuthEvent {
   const AuthResetRequested();
 }
+
+class AuthModeToggled extends AuthEvent {
+  const AuthModeToggled();
+}

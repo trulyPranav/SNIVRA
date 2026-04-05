@@ -18,6 +18,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthLoginSubmitted>(_onLoginSubmitted);
     on<AuthOtpSubmitted>(_onOtpSubmitted);
     on<AuthResetRequested>(_onResetRequested);
+    on<AuthModeToggled>(_onModeToggled);
   }
 
   final AuthRepository _authRepository;
@@ -31,13 +32,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onOtpChanged(AuthOtpChanged event, Emitter<AuthState> emit) async {
-    emit(state.copyWith(otp: event.otp, clearStatus: true, errorMessage: null, infoMessage: null, successMessage: null));
+    emit(state.copyWith(otp: event.otp, errorMessage: null, infoMessage: null, successMessage: null));
   }
 
   Future<void> _onLoginSubmitted(AuthLoginSubmitted event, Emitter<AuthState> emit) async {
     final normalizedPhone = _normalizePhone(state.phone);
     if (!_isValidPhone(normalizedPhone)) {
       emit(state.copyWith(status: AuthStatus.failure, errorMessage: 'Enter a valid 10-digit Indian phone number.'));
+      return;
+    }
+
+    if (state.isRegisterMode && state.name.trim().isEmpty) {
+      emit(state.copyWith(status: AuthStatus.failure, errorMessage: 'Please enter your name to register.'));
       return;
     }
 
@@ -102,8 +108,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onResetRequested(AuthResetRequested event, Emitter<AuthState> emit) async {
-    _authRepository.clearToken();
+    await _authRepository.clearToken();
     emit(const AuthState());
+  }
+
+  Future<void> _onModeToggled(AuthModeToggled event, Emitter<AuthState> emit) async {
+    emit(state.copyWith(isRegisterMode: !state.isRegisterMode, name: '', errorMessage: null, infoMessage: null, successMessage: null));
   }
 
   String _normalizePhone(String phone) {

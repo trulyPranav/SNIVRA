@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../data/auth_models.dart';
+import '../../home/presentation/home_page.dart';
 import 'bloc/auth_bloc.dart';
 
 class LoginPage extends StatelessWidget {
@@ -40,6 +41,12 @@ class LoginPage extends StatelessWidget {
             SnackBar(
               content: Text(state.successMessage!),
               behavior: SnackBarBehavior.floating,
+            ),
+          );
+
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute<void>(
+              builder: (_) => const HomePage(),
             ),
           );
         }
@@ -182,10 +189,12 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = state.isOtpStep ? 'Verify access' : 'Welcome to SNIVRA';
+    final title = state.isOtpStep ? 'Verify access' : (state.isRegisterMode ? 'Create account' : 'Welcome back');
     final subtitle = state.isOtpStep
         ? 'Enter the OTP sent to ${state.phone} to continue.'
-        : 'Sign in to manage bookings, salons, and barber operations from one place.';
+        : state.isRegisterMode
+            ? 'Sign up to manage bookings and barber operations.'
+            : 'Sign in to manage bookings, salons, and barber operations from one place.';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,6 +229,72 @@ class _Header extends StatelessWidget {
   }
 }
 
+class _ModeToggle extends StatelessWidget {
+  const _ModeToggle({required this.isRegisterMode, required this.isLoading});
+
+  final bool isRegisterMode;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    final bloc = context.read<AuthBloc>();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      padding: const EdgeInsets.all(6),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: isLoading ? null : () => bloc.add(const AuthModeToggled()),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                decoration: BoxDecoration(
+                  color: !isRegisterMode ? Colors.white70 : Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Text(
+                  'Login',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: !isRegisterMode ? const Color(0xFF1D1B19) : const Color(0xFF7B6A5D),
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: isLoading ? null : () => bloc.add(const AuthModeToggled()),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                decoration: BoxDecoration(
+                  color: isRegisterMode ? Colors.white70 : Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Text(
+                  'Register',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: isRegisterMode ? const Color(0xFF1D1B19) : const Color(0xFF7B6A5D),
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PhoneStep extends StatelessWidget {
   const _PhoneStep({required this.state});
 
@@ -234,6 +309,8 @@ class _PhoneStep extends StatelessWidget {
       key: const ValueKey('phone-step'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _ModeToggle(isRegisterMode: state.isRegisterMode, isLoading: isLoading),
+        const SizedBox(height: 20),
         TextField(
           keyboardType: TextInputType.phone,
           maxLength: 10,
@@ -246,21 +323,30 @@ class _PhoneStep extends StatelessWidget {
           onChanged: (value) => bloc.add(AuthPhoneChanged(value)),
         ),
         const SizedBox(height: 14),
-        TextField(
-          enabled: !isLoading,
-          decoration: const InputDecoration(
-            labelText: 'Name',
-            hintText: 'Optional for returning users',
+        if (state.isRegisterMode)
+          TextField(
+            enabled: !isLoading,
+            decoration: const InputDecoration(
+              labelText: 'Full name',
+              hintText: 'John Doe',
+            ),
+            onChanged: (value) => bloc.add(AuthNameChanged(value)),
+          )
+        else
+          Text(
+            'Don\'t have an account? Tap Register above.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF7B6A5D),
+                ),
           ),
-          onChanged: (value) => bloc.add(AuthNameChanged(value)),
-        ),
         const SizedBox(height: 12),
-        Text(
-          'Only include your name if this is your first time using SNIVRA.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: const Color(0xFF7B6A5D),
-              ),
-        ),
+        if (state.isRegisterMode)
+          Text(
+            'Use your real name so customers can identify you.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF7B6A5D),
+                ),
+          ),
         const SizedBox(height: 20),
         FilledButton(
           onPressed: isLoading ? null : () => bloc.add(const AuthLoginSubmitted()),

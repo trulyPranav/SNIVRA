@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'src/core/network/api_client.dart';
 import 'src/features/auth/data/auth_repository.dart';
 import 'src/features/auth/presentation/bloc/auth_bloc.dart';
-import 'src/features/auth/presentation/login_page.dart';
+import 'src/features/splash/presentation/splash_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -66,7 +66,7 @@ class SNIVRAApp extends StatelessWidget {
               ),
             ),
           ),
-          home: const LoginPage(),
+          home: const SplashPage(),
         ),
       ),
     );

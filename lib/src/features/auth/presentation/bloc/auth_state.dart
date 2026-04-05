@@ -8,6 +8,7 @@ class AuthState extends Equatable {
     this.name = '',
     this.otp = '',
     this.isNewUser = false,
+    this.isRegisterMode = false,
     this.status = AuthStatus.initial,
     this.errorMessage,
     this.infoMessage,
@@ -19,6 +20,7 @@ class AuthState extends Equatable {
   final String name;
   final String otp;
   final bool isNewUser;
+  final bool isRegisterMode;
   final AuthStatus status;
   final String? errorMessage;
   final String? infoMessage;
@@ -34,6 +36,7 @@ class AuthState extends Equatable {
     String? name,
     String? otp,
     bool? isNewUser,
+    bool? isRegisterMode,
     AuthStatus? status,
     String? errorMessage,
     String? infoMessage,
@@ -47,6 +50,7 @@ class AuthState extends Equatable {
       name: name ?? this.name,
       otp: clearOtp ? '' : (otp ?? this.otp),
       isNewUser: isNewUser ?? this.isNewUser,
+      isRegisterMode: isRegisterMode ?? this.isRegisterMode,
       status: clearStatus ? AuthStatus.initial : (status ?? this.status),
       errorMessage: errorMessage,
       infoMessage: infoMessage,
@@ -61,6 +65,7 @@ class AuthState extends Equatable {
         name,
         otp,
         isNewUser,
+        isRegisterMode,
         status,
         errorMessage,
         infoMessage,
