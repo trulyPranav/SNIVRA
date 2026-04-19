@@ -39,6 +39,8 @@ dependencies:
   equatable: ^2.0.5
   shared_preferences: ^2.3.2
   geolocator: ^13.0.2
+  supabase_flutter: ^2.8.4
+  google_sign_in: ^6.2.2
 
 dev_dependencies:
   flutter_test:
