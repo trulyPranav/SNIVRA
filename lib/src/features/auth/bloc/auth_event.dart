@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../data/models/auth_model.dart';
+
 sealed class AuthEvent extends Equatable {
   const AuthEvent();
 
@@ -26,6 +28,20 @@ class AuthPhoneSubmitted extends AuthEvent {
 
   @override
   List<Object?> get props => [supabaseAccessToken, phone, name];
+}
+
+/// Session restored from storage (e.g. app restart via splash).
+class AuthSessionRestored extends AuthEvent {
+  const AuthSessionRestored({
+    required this.user,
+    required this.accessToken,
+  });
+
+  final AuthUser user;
+  final String accessToken;
+
+  @override
+  List<Object?> get props => [user, accessToken];
 }
 
 /// User tapped sign-out.

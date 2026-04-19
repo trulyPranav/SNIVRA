@@ -61,7 +61,8 @@ class _PhoneCompletionPageState extends State<PhoneCompletionPage> {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
-          Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);
+          final route = state.user.isOwnerOrBarber ? '/home' : '/saloon-setup';
+          Navigator.of(context).pushNamedAndRemoveUntil(route, (_) => false);
         } else if (state is AuthFailure) {
           ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()

@@ -18,6 +18,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         super(const AuthInitial()) {
     on<AuthGoogleSignInRequested>(_onGoogleSignIn);
     on<AuthPhoneSubmitted>(_onPhoneSubmitted);
+    on<AuthSessionRestored>(_onSessionRestored);
     on<AuthSignOutRequested>(_onSignOut);
   }
 
@@ -81,6 +82,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } catch (e) {
       emit(AuthFailure(error: mapApiException(ApiException(message: e.toString()))));
     }
+  }
+
+  Future<void> _onSessionRestored(
+    AuthSessionRestored event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthAuthenticated(user: event.user, accessToken: event.accessToken));
   }
 
   Future<void> _onSignOut(

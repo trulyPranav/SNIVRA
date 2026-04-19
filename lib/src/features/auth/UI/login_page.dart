@@ -17,7 +17,8 @@ class LoginPage extends StatelessWidget {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
-          Navigator.of(context).pushReplacementNamed('/home');
+          final route = state.user.isOwnerOrBarber ? '/home' : '/saloon-setup';
+          Navigator.of(context).pushReplacementNamed(route);
         } else if (state is AuthRequiresPhoneState) {
           Navigator.of(context).push(
             MaterialPageRoute<void>(

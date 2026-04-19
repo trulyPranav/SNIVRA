@@ -52,7 +52,7 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
         }
       }
 
-      emit(SplashAuthenticated(user: user));
+      emit(SplashAuthenticated(user: user, accessToken: token));
     } on ApiException catch (e) {
       if (e.statusCode == 401 || e.statusCode == 404) {
         await _tokenStorage.clearAccessToken();

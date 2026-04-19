@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../auth/bloc/auth_bloc.dart';
+import '../../auth/bloc/auth_event.dart';
 import '../bloc/splash_bloc.dart';
 import '../bloc/splash_event.dart';
 import '../bloc/splash_state.dart';
@@ -137,7 +139,13 @@ class _SplashPageState extends State<SplashPage>
     return BlocListener<SplashBloc, SplashState>(
       listener: (context, state) {
         if (state is SplashAuthenticated) {
-          Navigator.of(context).pushReplacementNamed('/home');
+          context.read<AuthBloc>().add(AuthSessionRestored(
+                user: state.user,
+                accessToken: state.accessToken,
+              ));
+          final route =
+              state.user.isOwnerOrBarber ? '/home' : '/saloon-setup';
+          Navigator.of(context).pushReplacementNamed(route);
         } else if (state is SplashUnauthenticated) {
           Navigator.of(context).pushReplacementNamed('/login');
         }
