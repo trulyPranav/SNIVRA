@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/notifications/notification_service.dart';
 import '../auth/bloc/auth_bloc.dart';
 import '../auth/bloc/auth_event.dart';
 import '../auth/bloc/auth_state.dart';
@@ -135,6 +136,8 @@ class _HomeTabState extends State<_HomeTab> {
   void initState() {
     super.initState();
     _load();
+    // Register FCM token with the backend now that auth is guaranteed.
+    NotificationService.instance.registerToken();
   }
 
   void _load() {
