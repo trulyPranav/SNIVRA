@@ -6,6 +6,7 @@ import '../auth/bloc/auth_bloc.dart';
 import '../auth/bloc/auth_event.dart';
 import '../auth/bloc/auth_state.dart';
 import '../auth/data/models/auth_model.dart';
+import '../slots/UI/slots_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -38,7 +39,7 @@ class _HomePageState extends State<HomePage> {
   static const List<Widget> _pages = [
     _PlaceholderPage(label: 'Home'),
     _PlaceholderPage(label: 'Bookings'),
-    _PlaceholderPage(label: 'Slots'),
+    SlotsPage(),
   ];
 
   @override
