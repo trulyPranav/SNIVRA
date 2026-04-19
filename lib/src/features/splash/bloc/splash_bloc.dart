@@ -32,7 +32,7 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
     Emitter<SplashState> emit,
   ) async {
     // Minimum splash display time (lets the animation play).
-    await Future.delayed(const Duration(milliseconds: 2000));
+    await Future.delayed(const Duration(milliseconds: 3500));
 
     final token = await _tokenStorage.readAccessToken();
     if (token == null || token.isEmpty) {
