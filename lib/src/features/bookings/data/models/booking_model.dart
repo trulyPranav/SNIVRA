@@ -19,6 +19,23 @@ BookingStatus _statusFromString(String? s) {
 
 String _trimTime(String t) => t.length >= 5 ? t.substring(0, 5) : t;
 
+// ─── Booking service reference ───────────────────────────────────────────────
+
+class BookingService extends Equatable {
+  const BookingService({required this.id, required this.name});
+
+  final String id;
+  final String name;
+
+  factory BookingService.fromJson(Map<String, dynamic> json) => BookingService(
+        id: json['id'] as String,
+        name: json['name'] as String? ?? '',
+      );
+
+  @override
+  List<Object?> get props => [id, name];
+}
+
 // ─── Saloon booking (GET /bookings/saloon-bookings/:id) ──────────────────────
 
 class SaloonBooking extends Equatable {
@@ -32,6 +49,7 @@ class SaloonBooking extends Equatable {
     required this.barberName,
     this.customerName,
     this.customerPhone,
+    this.services = const [],
   });
 
   final String id;
@@ -43,6 +61,7 @@ class SaloonBooking extends Equatable {
   final String barberName;
   final String? customerName;
   final String? customerPhone;
+  final List<BookingService> services;
 
   factory SaloonBooking.fromJson(Map<String, dynamic> json) => SaloonBooking(
         id: json['id'] as String,
@@ -54,6 +73,10 @@ class SaloonBooking extends Equatable {
         barberName: json['barber_name'] as String? ?? '',
         customerName: json['customer_name'] as String?,
         customerPhone: json['customer_phone'] as String?,
+        services: (json['services'] as List<dynamic>?)
+                ?.map((e) => BookingService.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            [],
       );
 
   SaloonBooking copyWith({BookingStatus? status}) => SaloonBooking(
@@ -66,11 +89,12 @@ class SaloonBooking extends Equatable {
         barberName: barberName,
         customerName: customerName,
         customerPhone: customerPhone,
+        services: services,
       );
 
   @override
   List<Object?> get props => [
         id, status, slotDate, startTime, endTime,
-        barberId, barberName, customerName, customerPhone,
+        barberId, barberName, customerName, customerPhone, services,
       ];
 }

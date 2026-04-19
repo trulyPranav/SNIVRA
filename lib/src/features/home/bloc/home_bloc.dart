@@ -34,7 +34,10 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       ]);
       final barbers = results[0] as List<SaloonBarber>;
       final services = results[1] as List<SaloonService>;
-      final prevIsOpen = state is HomeLoaded ? (state as HomeLoaded).isOpen : null;
+      // Priority: already-known state value > value seeded from /me > null
+      final prevIsOpen = state is HomeLoaded
+          ? (state as HomeLoaded).isOpen
+          : event.initialIsOpen;
       emit(HomeLoaded(barbers: barbers, services: services, isOpen: prevIsOpen));
     } on ApiException catch (e) {
       emit(HomeError(message: e.message));

@@ -142,7 +142,10 @@ class _HomeTabState extends State<_HomeTab> {
     if (authState is! AuthAuthenticated) return;
     final saloons = authState.user.saloons;
     if (saloons.isNotEmpty) {
-      context.read<HomeBloc>().add(HomeLoadRequested(saloonId: saloons.first.id));
+      context.read<HomeBloc>().add(HomeLoadRequested(
+            saloonId: saloons.first.id,
+            initialIsOpen: saloons.first.isOpen,
+          ));
     }
   }
 
@@ -248,7 +251,7 @@ class _HomeContent extends StatelessWidget {
         // Section header
         _SectionHeader(
           icon: Icons.group_outlined,
-          label: isOwner ? 'Team Availability' : 'My Availability',
+          label: isOwner ? 'Barber Availability' : 'My Availability',
         ),
         const SizedBox(height: 10),
 
@@ -1830,6 +1833,14 @@ class _AppDrawerState extends State<_AppDrawer>
                 onTap: () {},
               ),
 
+            if (isOwner)
+              _DrawerTile(
+                icon: Icons.group_outlined,
+                label: 'Manage',
+                trailing: _ComingSoonBadge(),
+                onTap: () {},
+              ),
+
             const Spacer(),
 
             // ── Sign out ────────────────────────────────────────────────────
@@ -1906,7 +1917,7 @@ class _ComingSoonBadge extends StatelessWidget {
         border: Border.all(color: AppColors.divider),
       ),
       child: const Text(
-        'Soon',
+        'Coming Soon',
         style: TextStyle(
           color: AppColors.textHint,
           fontSize: 11,

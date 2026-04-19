@@ -55,6 +55,7 @@ class UserSaloon extends Equatable {
     required this.name,
     required this.hashCode_,
     required this.ownerId,
+    this.isOpen,
   });
 
   final String id;
@@ -62,15 +63,19 @@ class UserSaloon extends Equatable {
   final String hashCode_;
   final String ownerId;
 
+  /// Reflects the live `is_open` flag from the server (null if not yet known).
+  final bool? isOpen;
+
   factory UserSaloon.fromJson(Map<String, dynamic> json) {
     return UserSaloon(
       id: json['id'] as String,
       name: json['name'] as String,
       hashCode_: json['hash_code'] as String? ?? '',
       ownerId: json['owner_id'] as String? ?? '',
+      isOpen: json['is_open'] as bool?,
     );
   }
 
   @override
-  List<Object?> get props => [id, name, hashCode_, ownerId];
+  List<Object?> get props => [id, name, hashCode_, ownerId, isOpen];
 }

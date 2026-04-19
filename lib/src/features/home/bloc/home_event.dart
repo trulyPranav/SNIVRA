@@ -7,14 +7,17 @@ abstract class HomeEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-/// Fetch barbers list for the saloon.
+/// Fetch barbers list and services for the saloon.
+/// [initialIsOpen] seeds the saloon open/close state from the /me response,
+/// so the toggle renders correctly before any PATCH call is made.
 class HomeLoadRequested extends HomeEvent {
-  const HomeLoadRequested({required this.saloonId});
+  const HomeLoadRequested({required this.saloonId, this.initialIsOpen});
 
   final String saloonId;
+  final bool? initialIsOpen;
 
   @override
-  List<Object?> get props => [saloonId];
+  List<Object?> get props => [saloonId, initialIsOpen];
 }
 
 /// Owner toggles saloon open / closed.

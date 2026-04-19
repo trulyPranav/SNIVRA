@@ -392,6 +392,25 @@ class _SaloonBookingCard extends StatelessWidget {
                       fontSize: 12, color: AppColors.textSecondary)),
             ],
           ),
+          // Services
+          if (booking.services.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.spa_outlined,
+                    size: 13, color: AppColors.textSecondary),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    booking.services.map((s) => s.name).join(', '),
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ),
+              ],
+            ),
+          ],
           // Action row
           if (onVerifyOtp != null || onComplete != null || onCancel != null) ...[
             const SizedBox(height: 10),
