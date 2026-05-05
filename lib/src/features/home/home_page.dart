@@ -10,6 +10,7 @@ import '../auth/data/models/auth_model.dart';
 import '../bookings/UI/bookings_page.dart';
 import '../slots/UI/slots_page.dart';
 import '../insights/UI/insights_page.dart';
+import '../manage/UI/manage_page.dart';
 import 'bloc/home_bloc.dart';
 import 'bloc/home_event.dart';
 import 'bloc/home_state.dart';
@@ -1855,8 +1856,14 @@ class _AppDrawerState extends State<_AppDrawer>
               _DrawerTile(
                 icon: Icons.group_outlined,
                 label: 'Manage',
-                trailing: _ComingSoonBadge(),
-                onTap: () {},
+                onTap: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ManagePage(),
+                    ),
+                  );
+                },
               ),
 
             const Spacer(),
