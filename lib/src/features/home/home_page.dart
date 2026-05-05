@@ -9,6 +9,7 @@ import '../auth/bloc/auth_state.dart';
 import '../auth/data/models/auth_model.dart';
 import '../bookings/UI/bookings_page.dart';
 import '../slots/UI/slots_page.dart';
+import '../insights/UI/insights_page.dart';
 import 'bloc/home_bloc.dart';
 import 'bloc/home_event.dart';
 import 'bloc/home_state.dart';
@@ -24,7 +25,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
 
-  static const List<_NavItem> _navItems = [
+  static const _kBaseNavItems = [
     _NavItem(
       label: 'Home',
       icon: Icons.home_outlined,
@@ -42,11 +43,11 @@ class _HomePageState extends State<HomePage> {
     ),
   ];
 
-  static const List<Widget> _pages = [
-    _HomeTab(),
-    BookingsPage(),
-    SlotsPage(),
-  ];
+  static const _kInsightsNavItem = _NavItem(
+    label: 'Insights',
+    icon: Icons.bar_chart_outlined,
+    activeIcon: Icons.bar_chart_rounded,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -65,6 +66,20 @@ class _HomePageState extends State<HomePage> {
         }
 
         final user = state.user;
+        final isOwner = user.role == UserRole.owner;
+        final navItems = [
+          _kBaseNavItems[0], // Home
+          if (isOwner) _kInsightsNavItem, // Insights (owners only)
+          _kBaseNavItems[1], // Bookings
+          _kBaseNavItems[2], // Slots
+        ];
+        final pages = [
+          const _HomeTab(),
+          if (isOwner) const InsightsPage(),
+          const BookingsPage(),
+          const SlotsPage(),
+        ];
+        final safeIndex = _currentIndex.clamp(0, navItems.length - 1);
 
         return Scaffold(
           backgroundColor: AppColors.background,
@@ -74,13 +89,13 @@ class _HomePageState extends State<HomePage> {
             elevation: 0,
             scrolledUnderElevation: 1,
             iconTheme: const IconThemeData(color: AppColors.textPrimary),
-            title: Text(_navItems[_currentIndex].label),
+            title: Text(navItems[safeIndex].label),
             centerTitle: false,
           ),
           drawer: _AppDrawer(user: user),
-          body: _pages[_currentIndex],
+          body: pages[safeIndex],
           bottomNavigationBar: NavigationBar(
-            selectedIndex: _currentIndex,
+            selectedIndex: safeIndex,
             onDestinationSelected: (i) =>
                 setState(() => _currentIndex = i),
             backgroundColor: Colors.white,
@@ -90,7 +105,7 @@ class _HomePageState extends State<HomePage> {
             elevation: 0,
             labelBehavior:
                 NavigationDestinationLabelBehavior.alwaysShow,
-            destinations: _navItems
+            destinations: navItems
                 .map(
                   (item) => NavigationDestination(
                     icon: Icon(item.icon,
