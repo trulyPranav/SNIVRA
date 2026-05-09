@@ -1882,6 +1882,39 @@ class _AppDrawerState extends State<_AppDrawer>
                     .add(const AuthSignOutRequested());
               },
             ),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () => showGeneralDialog(
+                context: context,
+                barrierDismissible: true,
+                barrierLabel: 'About',
+                barrierColor: Colors.black87,
+                transitionDuration: const Duration(milliseconds: 500),
+                pageBuilder: (_, __, ___) => const _AboutDialog(),
+                transitionBuilder: (_, anim, __, child) {
+                  final curved = CurvedAnimation(
+                    parent: anim,
+                    curve: Curves.easeOutCubic,
+                  );
+                  return FadeTransition(
+                    opacity: curved,
+                    child: ScaleTransition(
+                      scale: Tween(begin: 0.85, end: 1.0).animate(curved),
+                      child: child,
+                    ),
+                  );
+                },
+              ),
+              child: Text(
+                '© ${DateTime.now().year} SNIVRA · powered by Zlyro',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textHint,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
           ],
         ),
@@ -1947,6 +1980,126 @@ class _ComingSoonBadge extends StatelessWidget {
           color: AppColors.textHint,
           fontSize: 11,
           fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+// ── About dialog ─────────────────────────────────────────────────────────────
+
+class _AboutDialog extends StatefulWidget {
+  const _AboutDialog();
+
+  @override
+  State<_AboutDialog> createState() => _AboutDialogState();
+}
+
+class _AboutDialogState extends State<_AboutDialog>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _snivraFade;
+  late final Animation<Offset> _snivraSlide;
+  late final Animation<double> _poweredFade;
+  late final Animation<double> _zlyroFade;
+  late final Animation<Offset> _zlyroSlide;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    );
+
+    _snivraFade = CurvedAnimation(
+      parent: _ctrl,
+      curve: const Interval(0.0, 0.45, curve: Curves.easeOut),
+    );
+    _snivraSlide = Tween(
+      begin: const Offset(0, 0.25),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _ctrl,
+      curve: const Interval(0.0, 0.45, curve: Curves.easeOutCubic),
+    ));
+
+    _poweredFade = CurvedAnimation(
+      parent: _ctrl,
+      curve: const Interval(0.38, 0.62, curve: Curves.easeOut),
+    );
+
+    _zlyroFade = CurvedAnimation(
+      parent: _ctrl,
+      curve: const Interval(0.55, 1.0, curve: Curves.easeOut),
+    );
+    _zlyroSlide = Tween(
+      begin: const Offset(0, 0.25),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _ctrl,
+      curve: const Interval(0.55, 1.0, curve: Curves.easeOutCubic),
+    ));
+
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).pop(),
+      behavior: HitTestBehavior.opaque,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Snivra logo
+              FadeTransition(
+                opacity: _snivraFade,
+                child: SlideTransition(
+                  position: _snivraSlide,
+                  child: Image.asset(
+                    'assets/snivra.png',
+                    height: 72,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 28),
+              // "powered by" text
+              FadeTransition(
+                opacity: _poweredFade,
+                child: const Text(
+                  'powered by',
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontSize: 13,
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Zlyro logo
+              FadeTransition(
+                opacity: _zlyroFade,
+                child: SlideTransition(
+                  position: _zlyroSlide,
+                  child: Image.asset(
+                    'assets/zlyro_with_text.png',
+                    height: 36,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

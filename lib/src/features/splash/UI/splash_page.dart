@@ -269,7 +269,7 @@ class _SplashPageState extends State<SplashPage>
                                     ),
                                     child: ClipOval(
                                       child: Image.asset(
-                                        'assets/snivra.jpeg',
+                                        'assets/snivra.png',
                                         fit: BoxFit.cover,
                                       ),
                                     ),
