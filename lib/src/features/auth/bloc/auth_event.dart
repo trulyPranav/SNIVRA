@@ -48,3 +48,8 @@ class AuthSessionRestored extends AuthEvent {
 class AuthSignOutRequested extends AuthEvent {
   const AuthSignOutRequested();
 }
+
+/// Refresh the current user's data from /users/me (e.g. after joining/creating a saloon).
+class AuthUserRefreshRequested extends AuthEvent {
+  const AuthUserRefreshRequested();
+}

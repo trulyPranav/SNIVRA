@@ -20,6 +20,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthPhoneSubmitted>(_onPhoneSubmitted);
     on<AuthSessionRestored>(_onSessionRestored);
     on<AuthSignOutRequested>(_onSignOut);
+    on<AuthUserRefreshRequested>(_onUserRefresh);
   }
 
   final AuthRepository _repo;
@@ -37,8 +38,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       if (result is AuthSuccess) {
         await _persist(result);
+        final freshUser = await _repo.fetchCurrentUser();
         emit(AuthAuthenticated(
-            user: result.user, accessToken: result.accessToken));
+            user: freshUser, accessToken: result.accessToken));
       } else if (result is AuthRequiresPhone) {
         emit(AuthRequiresPhoneState(
           supabaseAccessToken: result.supabaseAccessToken,
@@ -67,8 +69,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       if (result is AuthSuccess) {
         await _persist(result);
+        final freshUser = await _repo.fetchCurrentUser();
         emit(AuthAuthenticated(
-            user: result.user, accessToken: result.accessToken));
+            user: freshUser, accessToken: result.accessToken));
       } else if (result is AuthRequiresPhone) {
         // Should not happen at this stage, but handle gracefully.
         emit(AuthRequiresPhoneState(
@@ -101,6 +104,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       _saloonStorage.clearActiveSaloonId(),
     ]);
     emit(const AuthInitial());
+  }
+
+  Future<void> _onUserRefresh(
+    AuthUserRefreshRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    final current = state;
+    if (current is! AuthAuthenticated) return;
+    try {
+      final user = await _repo.fetchCurrentUser();
+      if (user.saloons.isNotEmpty) {
+        await _saloonStorage.saveActiveSaloonId(user.saloons.first.id);
+      }
+      emit(AuthAuthenticated(user: user, accessToken: current.accessToken));
+    } on ApiException catch (e) {
+      emit(AuthFailure(error: mapApiException(e)));
+    } catch (e) {
+      emit(AuthFailure(error: mapApiException(ApiException(message: e.toString()))));
+    }
   }
 
   Future<void> _persist(AuthSuccess result) async {

@@ -671,17 +671,40 @@ class _BarberSection extends StatelessWidget {
     return _SectionCard(
       title: 'BARBER PERFORMANCE',
       child: Column(
-        children: barbers.asMap().entries.map((e) {
-          final isLast = e.key == barbers.length - 1;
-          return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _BarberRow(barber: e.value),
-              if (!isLast)
-                const Divider(
-                    height: 20, color: AppColors.divider),
+              _Dot(color: AppColors.success),
+              const SizedBox(width: 4),
+              const Text('Completed',
+                  style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+              const SizedBox(width: 12),
+              _Dot(color: AppColors.error),
+              const SizedBox(width: 4),
+              const Text('Cancelled',
+                  style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+              const SizedBox(width: 12),
+              _Dot(color: _kAmber),
+              const SizedBox(width: 4),
+              const Text('No-show',
+                  style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
             ],
-          );
-        }).toList(),
+          ),
+          const SizedBox(height: 12),
+          ...barbers.asMap().entries.map((e) {
+            final isLast = e.key == barbers.length - 1;
+            return Column(
+              children: [
+                _BarberRow(barber: e.value),
+                if (!isLast)
+                  const Divider(
+                      height: 20, color: AppColors.divider),
+              ],
+            );
+          }),
+        ],
       ),
     );
   }
@@ -756,30 +779,62 @@ class _BarberRow extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _Dot(color: AppColors.success),
-            const SizedBox(width: 3),
-            Text(
-              '${barber.completed}',
-              style: const TextStyle(
-                  fontSize: 11, color: AppColors.textSecondary),
+            Row(
+              children: [
+                _Dot(color: AppColors.success),
+                const SizedBox(width: 3),
+                Text(
+                  '${barber.completed}',
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textSecondary),
+                ),
+                const SizedBox(width: 10),
+                _Dot(color: AppColors.error),
+                const SizedBox(width: 3),
+                Text(
+                  '${barber.cancelled}',
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textSecondary),
+                ),
+                const SizedBox(width: 10),
+                _Dot(color: _kAmber),
+                const SizedBox(width: 3),
+                Text(
+                  '${barber.noShow}',
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textSecondary),
+                ),
+              ],
             ),
-            const SizedBox(width: 10),
-            _Dot(color: AppColors.error),
-            const SizedBox(width: 3),
-            Text(
-              '${barber.cancelled}',
-              style: const TextStyle(
-                  fontSize: 11, color: AppColors.textSecondary),
+        if (barber.totalReviews != null && barber.totalReviews! > 0) ...
+          [
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(
+                  Icons.thumb_up_alt_rounded,
+                  size: 12,
+                  color: AppColors.success,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '${barber.satisfactionRate}% satisfied',
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.success),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '(${barber.satisfiedCount}/${barber.totalReviews} reviews)',
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textSecondary),
+                ),
+              ],
             ),
-            const SizedBox(width: 10),
-            _Dot(color: _kAmber),
-            const SizedBox(width: 3),
-            Text(
-              '${barber.noShow}',
-              style: const TextStyle(
-                  fontSize: 11, color: AppColors.textSecondary),
-            ),
+          ],
           ],
         ),
       ],

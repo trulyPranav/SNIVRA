@@ -23,6 +23,7 @@ class SaloonSetupPage extends StatelessWidget {
     return BlocListener<SaloonSetupBloc, SaloonSetupState>(
       listener: (context, state) {
         if (state is SaloonSetupSuccess) {
+          context.read<AuthBloc>().add(const AuthUserRefreshRequested());
           Navigator.of(context).pushReplacementNamed('/home');
         } else if (state is SaloonSetupFailure) {
           ScaffoldMessenger.of(context)

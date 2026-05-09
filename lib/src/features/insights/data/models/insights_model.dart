@@ -105,6 +105,9 @@ class BarberPerformance extends Equatable {
     required this.noShow,
     required this.arrived,
     required this.booked,
+    this.totalReviews,
+    this.satisfiedCount,
+    this.satisfactionRate,
   });
 
   final String barberId;
@@ -115,6 +118,9 @@ class BarberPerformance extends Equatable {
   final int noShow;
   final int arrived;
   final int booked;
+  final int? totalReviews;
+  final int? satisfiedCount;
+  final int? satisfactionRate;
 
   factory BarberPerformance.fromJson(Map<String, dynamic> json) =>
       BarberPerformance(
@@ -126,11 +132,15 @@ class BarberPerformance extends Equatable {
         noShow: json['no_show'] as int? ?? 0,
         arrived: json['arrived'] as int? ?? 0,
         booked: json['booked'] as int? ?? 0,
+        totalReviews: json['total_reviews'] as int?,
+        satisfiedCount: json['satisfied_count'] as int?,
+        satisfactionRate: json['satisfaction_rate'] as int?,
       );
 
   @override
   List<Object?> get props => [
         barberId, barberName, total, completed, cancelled, noShow, arrived, booked,
+        totalReviews, satisfiedCount, satisfactionRate,
       ];
 }
 

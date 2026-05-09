@@ -326,7 +326,7 @@ class _SplashPageState extends State<SplashPage>
                             child: Opacity(
                               opacity: _taglineOpacity.value,
                               child: Text(
-                                'Salon Management System',
+                                'Salon Management',
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodyLarge

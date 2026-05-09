@@ -88,7 +88,7 @@ class LoginPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Salon Management System',
+                    'Salon Management',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: AppColors.textSecondary,
                           letterSpacing: 0.4,
