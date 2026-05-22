@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/storage/saloon_storage.dart';
 import '../../../core/storage/token_storage.dart';
@@ -10,9 +11,11 @@ import 'auth_state.dart';
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc({
     required AuthRepository authRepository,
+    required ApiClient apiClient,
     required TokenStorage tokenStorage,
     required SaloonStorage saloonStorage,
   })  : _repo = authRepository,
+        _apiClient = apiClient,
         _tokenStorage = tokenStorage,
         _saloonStorage = saloonStorage,
         super(const AuthInitial()) {
@@ -24,6 +27,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   final AuthRepository _repo;
+  final ApiClient _apiClient;
   final TokenStorage _tokenStorage;
   final SaloonStorage _saloonStorage;
 
@@ -37,6 +41,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final result = await _repo.exchangeGoogleToken(supabaseToken);
 
       if (result is AuthSuccess) {
+        _apiClient.accessToken = result.accessToken;
         await _persist(result);
         final freshUser = await _repo.fetchCurrentUser();
         emit(AuthAuthenticated(
@@ -68,6 +73,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
 
       if (result is AuthSuccess) {
+        _apiClient.accessToken = result.accessToken;
         await _persist(result);
         final freshUser = await _repo.fetchCurrentUser();
         emit(AuthAuthenticated(
@@ -99,6 +105,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     await _repo.signOut();
+    _apiClient.accessToken = null;
     await Future.wait([
       _tokenStorage.clearAccessToken(),
       _saloonStorage.clearActiveSaloonId(),

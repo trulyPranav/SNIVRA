@@ -10,7 +10,7 @@ import '../auth/data/models/auth_model.dart';
 import '../bookings/UI/bookings_page.dart';
 import '../slots/UI/slots_page.dart';
 import '../insights/UI/insights_page.dart';
-import '../manage/UI/manage_page.dart';
+// import '../manage/UI/manage_page.dart';
 import 'bloc/home_bloc.dart';
 import 'bloc/home_event.dart';
 import 'bloc/home_state.dart';
@@ -1820,6 +1820,18 @@ class _AppDrawerState extends State<_AppDrawer>
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
+
+                            const SizedBox(height: 4),
+
+                            // Saloon join code
+                            Text(
+                              'Code: ${user.saloons.first.hashCode_}',
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -1828,10 +1840,11 @@ class _AppDrawerState extends State<_AppDrawer>
                 ),
               ),
               const Divider(
-                  height: 1,
-                  color: AppColors.divider,
-                  indent: 16,
-                  endIndent: 16),
+                height: 1,
+                color: AppColors.divider,
+                indent: 16,
+                endIndent: 16,
+              ),
             ],
 
             // ── Menu items ──────────────────────────────────────────────────
@@ -1852,18 +1865,26 @@ class _AppDrawerState extends State<_AppDrawer>
                 onTap: () {},
               ),
 
-            if (isOwner)
+            // if (isOwner)
+            //   _DrawerTile(
+            //     icon: Icons.group_outlined,
+            //     label: 'Manage',
+            //     onTap: () {
+            //       Navigator.of(context).pop();
+            //       Navigator.of(context).push(
+            //         MaterialPageRoute(
+            //           builder: (_) => const ManagePage(),
+            //         ),
+            //       );
+            //     },
+            //   ),
+
+            if(isOwner)
               _DrawerTile(
                 icon: Icons.group_outlined,
                 label: 'Manage',
-                onTap: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const ManagePage(),
-                    ),
-                  );
-                },
+                trailing: _ComingSoonBadge(),
+                onTap: () {},
               ),
 
             const Spacer(),
@@ -1996,58 +2017,163 @@ class _AboutDialog extends StatefulWidget {
 }
 
 class _AboutDialogState extends State<_AboutDialog>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
+    with TickerProviderStateMixin {
+  late final AnimationController _mainCtrl;
+  late final AnimationController _glowCtrl;
+
+  late final Animation<double> _backgroundFade;
+
   late final Animation<double> _snivraFade;
+  late final Animation<double> _snivraScale;
   late final Animation<Offset> _snivraSlide;
+
   late final Animation<double> _poweredFade;
+
   late final Animation<double> _zlyroFade;
+  late final Animation<double> _zlyroScale;
   late final Animation<Offset> _zlyroSlide;
+
+  late final Animation<double> _glowAnim;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
+
+    _mainCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: const Duration(milliseconds: 2400),
     );
+
+    _glowCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat(reverse: true);
+
+    _backgroundFade = CurvedAnimation(
+      parent: _mainCtrl,
+      curve: const Interval(0.0, 0.18, curve: Curves.easeOut),
+    );
+
+    // ───────────────── SNIVRA ─────────────────
 
     _snivraFade = CurvedAnimation(
-      parent: _ctrl,
-      curve: const Interval(0.0, 0.45, curve: Curves.easeOut),
+      parent: _mainCtrl,
+      curve: const Interval(0.08, 0.42, curve: Curves.easeOut),
     );
-    _snivraSlide = Tween(
-      begin: const Offset(0, 0.25),
+
+    _snivraScale = Tween<double>(
+      begin: 0.82,
+      end: 1,
+    ).animate(
+      CurvedAnimation(
+        parent: _mainCtrl,
+        curve: const Interval(0.08, 0.42, curve: Curves.easeOutBack),
+      ),
+    );
+
+    _snivraSlide = Tween<Offset>(
+      begin: const Offset(0, 0.18),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _ctrl,
-      curve: const Interval(0.0, 0.45, curve: Curves.easeOutCubic),
-    ));
+    ).animate(
+      CurvedAnimation(
+        parent: _mainCtrl,
+        curve: const Interval(0.08, 0.42, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    // ───────────────── POWERED BY ─────────────────
 
     _poweredFade = CurvedAnimation(
-      parent: _ctrl,
-      curve: const Interval(0.38, 0.62, curve: Curves.easeOut),
+      parent: _mainCtrl,
+      curve: const Interval(0.38, 0.55, curve: Curves.easeOut),
     );
+
+    // ───────────────── ZLYRO ─────────────────
 
     _zlyroFade = CurvedAnimation(
-      parent: _ctrl,
-      curve: const Interval(0.55, 1.0, curve: Curves.easeOut),
+      parent: _mainCtrl,
+      curve: const Interval(0.52, 0.9, curve: Curves.easeOut),
     );
-    _zlyroSlide = Tween(
-      begin: const Offset(0, 0.25),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _ctrl,
-      curve: const Interval(0.55, 1.0, curve: Curves.easeOutCubic),
-    ));
 
-    _ctrl.forward();
+    _zlyroScale = Tween<double>(
+      begin: 0.88,
+      end: 1,
+    ).animate(
+      CurvedAnimation(
+        parent: _mainCtrl,
+        curve: const Interval(0.52, 0.9, curve: Curves.easeOutBack),
+      ),
+    );
+
+    _zlyroSlide = Tween<Offset>(
+      begin: const Offset(0, 0.16),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _mainCtrl,
+        curve: const Interval(0.52, 0.9, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    _glowAnim = Tween<double>(
+      begin: 0.7,
+      end: 1.1,
+    ).animate(
+      CurvedAnimation(
+        parent: _glowCtrl,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    _mainCtrl.forward();
   }
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    _mainCtrl.dispose();
+    _glowCtrl.dispose();
     super.dispose();
+  }
+
+  Widget _glassLogo({
+    required Widget child,
+    required double size,
+    bool square = true,
+  }) {
+    return AnimatedBuilder(
+      animation: _glowAnim,
+      builder: (context, _) {
+        return Container(
+          width: square ? size : size * 1.7,
+          height: size,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            color: Colors.white.withOpacity(0.06),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.08),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.white.withOpacity(0.04 * _glowAnim.value),
+                blurRadius: 28 * _glowAnim.value,
+                spreadRadius: 1,
+              ),
+              BoxShadow(
+                color: const Color(0xFF6C63FF)
+                    .withOpacity(0.12 * _glowAnim.value),
+                blurRadius: 42 * _glowAnim.value,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: FittedBox(
+            fit: BoxFit.contain,
+            child: child,
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -2056,47 +2182,116 @@ class _AboutDialogState extends State<_AboutDialog>
       onTap: () => Navigator.of(context).pop(),
       behavior: HitTestBehavior.opaque,
       child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+        backgroundColor: Colors.black.withOpacity(0.82),
+        body: FadeTransition(
+          opacity: _backgroundFade,
+          child: Stack(
+            alignment: Alignment.center,
             children: [
-              // Snivra logo
-              FadeTransition(
-                opacity: _snivraFade,
-                child: SlideTransition(
-                  position: _snivraSlide,
-                  child: Image.asset(
-                    'assets/snivra.png',
-                    height: 72,
+              // Background radial glow
+              IgnorePointer(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: RadialGradient(
+                      radius: 0.9,
+                      colors: [
+                        Color(0x221565C0),
+                        Colors.transparent,
+                      ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 28),
-              // "powered by" text
-              FadeTransition(
-                opacity: _poweredFade,
-                child: const Text(
-                  'powered by',
-                  style: TextStyle(
-                    color: Colors.white54,
-                    fontSize: 13,
-                    letterSpacing: 1.2,
-                    fontWeight: FontWeight.w300,
+
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ───────────── SNIVRA ─────────────
+
+                  FadeTransition(
+                    opacity: _snivraFade,
+                    child: SlideTransition(
+                      position: _snivraSlide,
+                      child: ScaleTransition(
+                        scale: _snivraScale,
+                        child: _glassLogo(
+                          size: 120,
+                          square: true,
+                          child: Image.asset(
+                            'assets/snivra.png',
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Zlyro logo
-              FadeTransition(
-                opacity: _zlyroFade,
-                child: SlideTransition(
-                  position: _zlyroSlide,
-                  child: Image.asset(
-                    'assets/zlyro_with_text.png',
-                    height: 36,
+
+                  const SizedBox(height: 36),
+
+                  // ───────────── POWERED BY ─────────────
+
+                  FadeTransition(
+                    opacity: _poweredFade,
+                    child: ShaderMask(
+                      shaderCallback: (bounds) {
+                        return const LinearGradient(
+                          colors: [
+                            Colors.white38,
+                            Colors.white70,
+                            Colors.white38,
+                          ],
+                        ).createShader(bounds);
+                      },
+                      child: const Text(
+                        'POWERED BY',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          letterSpacing: 3,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+
+                  const SizedBox(height: 28),
+
+                  // ───────────── ZLYRO ─────────────
+
+                  FadeTransition(
+                    opacity: _zlyroFade,
+                    child: SlideTransition(
+                      position: _zlyroSlide,
+                      child: ScaleTransition(
+                        scale: _zlyroScale,
+                        child: _glassLogo(
+                          size: 90,
+                          square: false,
+                          child: Image.asset(
+                            'assets/zlyro_with_text.png',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 42),
+
+                  FadeTransition(
+                    opacity: CurvedAnimation(
+                      parent: _mainCtrl,
+                      curve: const Interval(0.82, 1),
+                    ),
+                    child: const Text(
+                      'Crafting modern salon experiences',
+                      style: TextStyle(
+                        color: Colors.white38,
+                        fontSize: 12,
+                        letterSpacing: 0.6,
+                        fontWeight: FontWeight.w300,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
