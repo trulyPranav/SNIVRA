@@ -4,20 +4,23 @@ sealed class BookingEvent extends Equatable {
   const BookingEvent();
 }
 
-/// Owner/Barber: load saloon bookings (with optional date/status filter).
+/// Owner/Barber: load saloon bookings (with optional date/session/status filter).
 class BookingSaloonListRequested extends BookingEvent {
   const BookingSaloonListRequested({
     required this.saloonId,
-    this.slotDate,
+    this.sessionDate,
+    this.sessionId,
     this.status,
   });
 
   final String saloonId;
-  final String? slotDate;
+  /// Filter by date 'YYYY-MM-DD' — maps to the `session_date` query param.
+  final String? sessionDate;
+  final String? sessionId;
   final String? status;
 
   @override
-  List<Object?> get props => [saloonId, slotDate, status];
+  List<Object?> get props => [saloonId, sessionDate, sessionId, status];
 }
 
 /// Owner/Barber: verify customer arrival OTP.

@@ -24,7 +24,8 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     try {
       final bookings = await _repo.fetchSaloonBookings(
         saloonId: event.saloonId,
-        slotDate: event.slotDate,
+        sessionDate: event.sessionDate,
+        sessionId: event.sessionId,
         status: event.status,
       );
       emit(BookingSaloonListLoaded(bookings: bookings));

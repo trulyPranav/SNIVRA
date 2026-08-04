@@ -8,7 +8,7 @@ import '../auth/bloc/auth_event.dart';
 import '../auth/bloc/auth_state.dart';
 import '../auth/data/models/auth_model.dart';
 import '../bookings/UI/bookings_page.dart';
-import '../slots/UI/slots_page.dart';
+import '../sessions/UI/sessions_page.dart';
 import '../insights/UI/insights_page.dart';
 // import '../manage/UI/manage_page.dart';
 import 'bloc/home_bloc.dart';
@@ -38,9 +38,9 @@ class _HomePageState extends State<HomePage> {
       activeIcon: Icons.edit_calendar_rounded,
     ),
     _NavItem(
-      label: 'Slots',
-      icon: Icons.settings_suggest_outlined,
-      activeIcon: Icons.settings_suggest_rounded,
+      label: 'Sessions',
+      icon: Icons.calendar_view_day_outlined,
+      activeIcon: Icons.calendar_view_day_rounded,
     ),
   ];
 
@@ -78,7 +78,7 @@ class _HomePageState extends State<HomePage> {
           const _HomeTab(),
           if (isOwner) const InsightsPage(),
           const BookingsPage(),
-          const SlotsPage(),
+          const SessionsPage(),
         ];
         final safeIndex = _currentIndex.clamp(0, navItems.length - 1);
 

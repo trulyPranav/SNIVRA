@@ -7,15 +7,20 @@ class BookingRepository {
   final ApiClient _apiClient;
 
   /// Owner/Barber: fetch saloon bookings.
+  ///
+  /// [sessionDate] filters by date ('YYYY-MM-DD'); maps to the `session_date`
+  /// query param (renamed from old `slot_date`).
   Future<List<SaloonBooking>> fetchSaloonBookings({
     required String saloonId,
-    String? slotDate,
+    String? sessionDate,
+    String? sessionId,
     String? status,
   }) async {
     final data = await _apiClient.getJson(
       '/bookings/saloon-bookings/$saloonId',
       queryParameters: {
-        if (slotDate != null) 'slot_date': slotDate,
+        if (sessionDate != null) 'session_date': sessionDate,
+        if (sessionId != null) 'session_id': sessionId,
         if (status != null) 'status': status,
       },
       requiresAuth: true,
@@ -36,14 +41,25 @@ class BookingRepository {
       body: {'otp': otp},
       requiresAuth: true,
     );
-    // Response only returns id + status; reconstruct minimal object.
+    // Response only returns id + status + session fields; reconstruct minimal object.
     final b = data['booking'] as Map<String, dynamic>;
+    final now = DateTime.now();
     return SaloonBooking(
       id: b['id'] as String,
       status: BookingStatus.arrived,
-      slotDate: '',
-      startTime: '',
-      endTime: '',
+      sessionId: b['session_id'] as String? ?? '',
+      sessionDate: '',
+      sessionLabel: '',
+      sessionStart: '',
+      sessionEnd: '',
+      queuePosition: (b['queue_position'] as num?)?.toInt() ?? 0,
+      estimatedArrivalAt: b['estimated_arrival_at'] != null
+          ? DateTime.tryParse(b['estimated_arrival_at'] as String)
+                  ?.toLocal() ??
+              now
+          : now,
+      allocatedDurationMinutes:
+          (b['allocated_duration_minutes'] as num?)?.toInt() ?? 0,
       barberId: '',
       barberName: '',
     );

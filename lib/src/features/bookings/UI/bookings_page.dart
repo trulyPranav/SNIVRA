@@ -46,10 +46,6 @@ class _BookingsPageState extends State<BookingsPage> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Customer view
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Owner / Barber view
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -72,6 +68,9 @@ class _SaloonBookingsViewState extends State<_SaloonBookingsView>
   String? _actionBookingId;
   String? _otpInput;
 
+  // Optional date filter — null means "all dates"
+  DateTime? _dateFilter;
+
   @override
   void initState() {
     super.initState();
@@ -88,22 +87,55 @@ class _SaloonBookingsViewState extends State<_SaloonBookingsView>
     super.dispose();
   }
 
+  String _fmtDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
   void _applyFilter() {
     final status = _kStatusFilters[_tabController.index];
     context.read<BookingBloc>().add(
           BookingSaloonListRequested(
             saloonId: widget.user.saloons.first.id,
             status: status == 'ALL' ? null : status,
+            sessionDate:
+                _dateFilter != null ? _fmtDate(_dateFilter!) : null,
           ),
         );
   }
 
   List<SaloonBooking> get _filtered {
     final status = _kStatusFilters[_tabController.index];
-    if (status == 'ALL') return _bookings;
-    return _bookings
+    // Sort by estimatedArrivalAt ascending (per spec — never sort by queue_position)
+    final sorted = [..._bookings]
+      ..sort((a, b) =>
+          a.estimatedArrivalAt.compareTo(b.estimatedArrivalAt));
+    if (status == 'ALL') return sorted;
+    return sorted
         .where((b) => _statusLabel(b.status).toUpperCase() == status)
         .toList();
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _dateFilter ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 90)),
+      lastDate: DateTime.now().add(const Duration(days: 90)),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.light(primary: AppColors.primary),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      setState(() => _dateFilter = picked);
+      _applyFilter();
+    }
+  }
+
+  void _clearDate() {
+    setState(() => _dateFilter = null);
+    _applyFilter();
   }
 
   @override
@@ -148,20 +180,74 @@ class _SaloonBookingsViewState extends State<_SaloonBookingsView>
           backgroundColor: AppColors.background,
           surfaceTintColor: AppColors.background,
           elevation: 0,
-          bottom: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            indicatorColor: AppColors.primary,
-            labelColor: AppColors.primary,
-            unselectedLabelColor: AppColors.textSecondary,
-            indicatorWeight: 2.5,
-            labelStyle:
-                const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            unselectedLabelStyle: const TextStyle(fontSize: 13),
-            tabs: _kStatusFilters
-                .map((s) => Tab(text: s))
-                .toList(),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(96),
+            child: Column(
+              children: [
+                // ── Date filter chip ──────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today_outlined,
+                          size: 14, color: AppColors.textSecondary),
+                      const SizedBox(width: 6),
+                      if (_dateFilter != null) ...[
+                        ActionChip(
+                          label: Text(
+                            _fmtDateLabel(_dateFilter!),
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary),
+                          ),
+                          onPressed: _pickDate,
+                          deleteIcon: const Icon(Icons.close,
+                              size: 14, color: AppColors.primary),
+                          onDeleted: _clearDate,
+                          backgroundColor: AppColors.surfaceVariant,
+                          side: const BorderSide(color: AppColors.divider),
+                          padding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ] else ...[
+                        ActionChip(
+                          label: const Text(
+                            'All Dates',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary),
+                          ),
+                          onPressed: _pickDate,
+                          avatar: const Icon(Icons.filter_list,
+                              size: 13, color: AppColors.textSecondary),
+                          backgroundColor: AppColors.surface,
+                          side: const BorderSide(color: AppColors.divider),
+                          padding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                // ── Status tabs ───────────────────────────────────────
+                TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  indicatorColor: AppColors.primary,
+                  labelColor: AppColors.primary,
+                  unselectedLabelColor: AppColors.textSecondary,
+                  indicatorWeight: 2.5,
+                  labelStyle: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600),
+                  unselectedLabelStyle: const TextStyle(fontSize: 13),
+                  tabs: _kStatusFilters
+                      .map((s) => Tab(text: s))
+                      .toList(),
+                ),
+              ],
+            ),
           ),
         ),
         body: BlocBuilder<BookingBloc, BookingState>(
@@ -172,7 +258,8 @@ class _SaloonBookingsViewState extends State<_SaloonBookingsView>
           builder: (context, state) {
             if (state is BookingListLoading) {
               return const Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
+                child:
+                    CircularProgressIndicator(color: AppColors.primary),
               );
             }
             if (state is BookingListError) {
@@ -189,10 +276,11 @@ class _SaloonBookingsViewState extends State<_SaloonBookingsView>
               color: AppColors.primary,
               onRefresh: () async => _applyFilter(),
               child: ListView.separated(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12),
                 itemCount: items.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                separatorBuilder: (_, __) =>
+                    const SizedBox(height: 10),
                 itemBuilder: (context, index) {
                   final b = items[index];
                   return _SaloonBookingCard(
@@ -250,12 +338,14 @@ class _SaloonBookingsViewState extends State<_SaloonBookingsView>
     );
     if (ok == true && (_otpInput?.length == 6) && context.mounted) {
       context.read<BookingBloc>().add(
-            BookingOtpVerifyRequested(bookingId: bookingId, otp: _otpInput!),
+            BookingOtpVerifyRequested(
+                bookingId: bookingId, otp: _otpInput!),
           );
     }
   }
 
-  Future<void> _confirmComplete(BuildContext context, String bookingId) async {
+  Future<void> _confirmComplete(
+      BuildContext context, String bookingId) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -268,7 +358,8 @@ class _SaloonBookingsViewState extends State<_SaloonBookingsView>
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Yes', style: TextStyle(color: AppColors.success)),
+            child: const Text('Yes',
+                style: TextStyle(color: AppColors.success)),
           ),
         ],
       ),
@@ -280,12 +371,14 @@ class _SaloonBookingsViewState extends State<_SaloonBookingsView>
     }
   }
 
-  Future<void> _confirmCancel(BuildContext context, String bookingId) async {
+  Future<void> _confirmCancel(
+      BuildContext context, String bookingId) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Cancel Booking'),
-        content: const Text('Are you sure you want to cancel this booking?'),
+        content: const Text(
+            'Are you sure you want to cancel this booking?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -308,7 +401,7 @@ class _SaloonBookingsViewState extends State<_SaloonBookingsView>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Cards
+// Booking card
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SaloonBookingCard extends StatelessWidget {
@@ -326,6 +419,21 @@ class _SaloonBookingCard extends StatelessWidget {
   final VoidCallback? onComplete;
   final VoidCallback? onCancel;
 
+  // Per-label accent colours (matches sessions page)
+  static const _kLabelColors = {
+    'MORNING': Color(0xFFFF8F00),
+    'AFTERNOON': Color(0xFF1565C0),
+    'EVENING': Color(0xFF4527A0),
+  };
+
+  Color get _sessionColor =>
+      _kLabelColors[booking.sessionLabel] ?? AppColors.primary;
+
+  String get _arrivalTime {
+    final t = booking.estimatedArrivalAt;
+    return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return _BookingCardShell(
@@ -334,7 +442,7 @@ class _SaloonBookingCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: customer name + status
+          // ── Header: customer name + status chip ───────────────────────
           Row(
             children: [
               Expanded(
@@ -359,29 +467,63 @@ class _SaloonBookingCard extends StatelessWidget {
                   fontSize: 11, color: AppColors.textHint),
             ),
           ],
-          const SizedBox(height: 6),
-          // Date + time
+          const SizedBox(height: 8),
+
+          // ── Session label + date ──────────────────────────────────────
           Row(
             children: [
+              if (booking.sessionLabel.isNotEmpty) ...[
+                _SessionLabelBadge(
+                  label: booking.sessionLabel,
+                  color: _sessionColor,
+                ),
+                const SizedBox(width: 8),
+              ],
               const Icon(Icons.calendar_today_outlined,
-                  size: 13, color: AppColors.textSecondary),
-              const SizedBox(width: 4),
-              Text(booking.slotDate,
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.textSecondary)),
-              const SizedBox(width: 12),
-              const Icon(Icons.access_time_outlined,
-                  size: 13, color: AppColors.textSecondary),
+                  size: 12, color: AppColors.textSecondary),
               const SizedBox(width: 4),
               Text(
-                '${booking.startTime} – ${booking.endTime}',
+                booking.sessionDate,
                 style: const TextStyle(
                     fontSize: 12, color: AppColors.textSecondary),
               ),
             ],
           ),
+          const SizedBox(height: 5),
+
+          // ── "Your turn at HH:MM" ─────────────────────────────────────
+          Row(
+            children: [
+              const Icon(Icons.schedule_outlined,
+                  size: 13, color: AppColors.primary),
+              const SizedBox(width: 4),
+              RichText(
+                text: TextSpan(
+                  children: [
+                    const TextSpan(
+                      text: 'Your turn at ',
+                      style: TextStyle(
+                          fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                    TextSpan(
+                      text: _arrivalTime,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              _DurationChip(
+                  minutes: booking.allocatedDurationMinutes),
+            ],
+          ),
           const SizedBox(height: 4),
-          // Barber
+
+          // ── Barber ───────────────────────────────────────────────────
           Row(
             children: [
               const Icon(Icons.content_cut_outlined,
@@ -392,7 +534,8 @@ class _SaloonBookingCard extends StatelessWidget {
                       fontSize: 12, color: AppColors.textSecondary)),
             ],
           ),
-          // Services
+
+          // ── Services ─────────────────────────────────────────────────
           if (booking.services.isNotEmpty) ...[
             const SizedBox(height: 4),
             Row(
@@ -411,8 +554,11 @@ class _SaloonBookingCard extends StatelessWidget {
               ],
             ),
           ],
-          // Action row
-          if (onVerifyOtp != null || onComplete != null || onCancel != null) ...[
+
+          // ── Action row ───────────────────────────────────────────────
+          if (onVerifyOtp != null ||
+              onComplete != null ||
+              onCancel != null) ...[
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -458,7 +604,7 @@ class _SaloonBookingCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared card shell — white card with blue left accent
+// Shared card shell — white card with coloured left accent
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _BookingCardShell extends StatelessWidget {
@@ -477,7 +623,7 @@ class _BookingCardShell extends StatelessWidget {
       case BookingStatus.booked:
         return AppColors.primary;
       case BookingStatus.arrived:
-        return const Color(0xFFFFA000); // amber
+        return const Color(0xFFFFA000);
       case BookingStatus.completed:
         return AppColors.success;
       case BookingStatus.cancelled:
@@ -517,6 +663,58 @@ class _BookingCardShell extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Small widgets
 // ─────────────────────────────────────────────────────────────────────────────
+
+class _SessionLabelBadge extends StatelessWidget {
+  const _SessionLabelBadge({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          color: color,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+}
+
+class _DurationChip extends StatelessWidget {
+  const _DurationChip({required this.minutes});
+
+  final int minutes;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        '${minutes}min',
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
 
 class _StatusChip extends StatelessWidget {
   const _StatusChip({required this.status});
@@ -591,7 +789,8 @@ class _ActionButton extends StatelessWidget {
       onPressed: onTap,
       style: TextButton.styleFrom(
         foregroundColor: color,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         minimumSize: Size.zero,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
@@ -639,7 +838,8 @@ class _ErrorRetry extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, color: AppColors.error, size: 40),
+            const Icon(Icons.error_outline,
+                color: AppColors.error, size: 40),
             const SizedBox(height: 12),
             Text(
               message,
@@ -687,9 +887,19 @@ void _showSnack(BuildContext context, String msg, {required bool success}) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text(msg),
-      backgroundColor: success ? AppColors.success : AppColors.error,
+      backgroundColor:
+          success ? AppColors.success : AppColors.error,
       behavior: SnackBarBehavior.floating,
       duration: const Duration(seconds: 3),
     ),
   );
+}
+
+/// Formats a date as "5 Aug 2026" without requiring the intl package.
+String _fmtDateLabel(DateTime d) {
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  return '${d.day} ${months[d.month - 1]} ${d.year}';
 }
