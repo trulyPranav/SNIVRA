@@ -1861,8 +1861,16 @@ class _AppDrawerState extends State<_AppDrawer>
               _DrawerTile(
                 icon: Icons.storefront_outlined,
                 label: 'Edit Saloon',
-                trailing: _ComingSoonBadge(),
-                onTap: () {},
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.textHint,
+                ),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  Future.microtask(() {
+                    Navigator.of(context).pushNamed('/saloon-edit');
+                  });
+                },
               ),
 
             // if (isOwner)

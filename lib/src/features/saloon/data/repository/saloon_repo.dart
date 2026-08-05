@@ -48,6 +48,35 @@ class SaloonRepository {
       throw ApiException(message: e.toString());
     }
   }
+
+  Future<Saloon> updateSaloon({
+    required String saloonId,
+    required String name,
+    required double lat,
+    required double lng,
+    String? locationName,
+    String? openingTime,
+    String? closingTime,
+  }) async {
+    try {
+      final data = await _apiClient.patchJson(
+        '/saloons/$saloonId/update',
+        body: {
+          'name': name,
+          'location': {'lat': lat, 'lng': lng},
+          'location_name': locationName,
+          'opening_time': openingTime,
+          'closing_time': closingTime,
+        },
+        requiresAuth: true,
+      );
+      return Saloon.fromJson(data['saloon'] as Map<String, dynamic>);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException(message: e.toString());
+    }
+  }
 }
 
 ApiError mapSaloonApiException(ApiException e) {

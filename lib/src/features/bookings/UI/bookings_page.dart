@@ -175,132 +175,154 @@ class _SaloonBookingsViewState extends State<_SaloonBookingsView>
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          title: const Text('Saloon Bookings'),
-          backgroundColor: AppColors.background,
-          surfaceTintColor: AppColors.background,
-          elevation: 0,
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(96),
-            child: Column(
-              children: [
-                // ── Date filter chip ──────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.calendar_today_outlined,
-                          size: 14, color: AppColors.textSecondary),
-                      const SizedBox(width: 6),
-                      if (_dateFilter != null) ...[
-                        ActionChip(
-                          label: Text(
-                            _fmtDateLabel(_dateFilter!),
-                            style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // ── Date filter ─────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 6),
+                    if (_dateFilter != null) ...[
+                      ActionChip(
+                        label: Text(
+                          _fmtDateLabel(_dateFilter!),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
                           ),
-                          onPressed: _pickDate,
-                          deleteIcon: const Icon(Icons.close,
-                              size: 14, color: AppColors.primary),
-                          onDeleted: _clearDate,
-                          backgroundColor: AppColors.surfaceVariant,
-                          side: const BorderSide(color: AppColors.divider),
-                          padding: EdgeInsets.zero,
-                          visualDensity: VisualDensity.compact,
                         ),
-                      ] else ...[
-                        ActionChip(
-                          label: const Text(
-                            'All Dates',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary),
+                        onPressed: _pickDate,
+                        backgroundColor: AppColors.surfaceVariant,
+                        side: const BorderSide(color: AppColors.divider),
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      IconButton(
+                        onPressed: _clearDate,
+                        icon: const Icon(
+                          Icons.close,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        splashRadius: 16,
+                      ),
+                    ] else ...[
+                      ActionChip(
+                        label: const Text(
+                          'All Dates',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
                           ),
-                          onPressed: _pickDate,
-                          avatar: const Icon(Icons.filter_list,
-                              size: 13, color: AppColors.textSecondary),
-                          backgroundColor: AppColors.surface,
-                          side: const BorderSide(color: AppColors.divider),
-                          padding: EdgeInsets.zero,
-                          visualDensity: VisualDensity.compact,
                         ),
-                      ],
+                        onPressed: _pickDate,
+                        avatar: const Icon(
+                          Icons.filter_list,
+                          size: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                        backgroundColor: AppColors.surface,
+                        side: const BorderSide(color: AppColors.divider),
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
                     ],
-                  ),
+                  ],
                 ),
-                // ── Status tabs ───────────────────────────────────────
-                TabBar(
-                  controller: _tabController,
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.start,
-                  indicatorColor: AppColors.primary,
-                  labelColor: AppColors.primary,
-                  unselectedLabelColor: AppColors.textSecondary,
-                  indicatorWeight: 2.5,
-                  labelStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600),
-                  unselectedLabelStyle: const TextStyle(fontSize: 13),
-                  tabs: _kStatusFilters
-                      .map((s) => Tab(text: s))
-                      .toList(),
-                ),
-              ],
-            ),
-          ),
-        ),
-        body: BlocBuilder<BookingBloc, BookingState>(
-          buildWhen: (_, s) =>
-              s is BookingListLoading ||
-              s is BookingSaloonListLoaded ||
-              s is BookingListError,
-          builder: (context, state) {
-            if (state is BookingListLoading) {
-              return const Center(
-                child:
-                    CircularProgressIndicator(color: AppColors.primary),
-              );
-            }
-            if (state is BookingListError) {
-              return _ErrorRetry(
-                message: state.message,
-                onRetry: _applyFilter,
-              );
-            }
-            final items = _filtered;
-            if (items.isEmpty) {
-              return const _EmptyState(label: 'No bookings found.');
-            }
-            return RefreshIndicator(
-              color: AppColors.primary,
-              onRefresh: () async => _applyFilter(),
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
-                itemCount: items.length,
-                separatorBuilder: (_, __) =>
-                    const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  final b = items[index];
-                  return _SaloonBookingCard(
-                    booking: b,
-                    isActioning: _actionBookingId == b.id,
-                    onVerifyOtp: b.status == BookingStatus.booked
-                        ? () => _showOtpDialog(context, b.id)
-                        : null,
-                    onComplete: b.status == BookingStatus.arrived
-                        ? () => _confirmComplete(context, b.id)
-                        : null,
-                    onCancel: (b.status == BookingStatus.booked ||
-                            b.status == BookingStatus.arrived)
-                        ? () => _confirmCancel(context, b.id)
-                        : null,
-                  );
-                },
               ),
-            );
-          },
+
+              // ── Status Tabs ─────────────────────────────────────
+              TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                indicatorColor: AppColors.primary,
+                labelColor: AppColors.primary,
+                unselectedLabelColor: AppColors.textSecondary,
+                indicatorWeight: 2.5,
+                labelStyle: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+                unselectedLabelStyle: const TextStyle(fontSize: 13),
+                tabs: _kStatusFilters.map((s) => Tab(text: s)).toList(),
+              ),
+
+              const Divider(height: 1),
+
+              // ── Booking List ────────────────────────────────────
+              Expanded(
+                child: BlocBuilder<BookingBloc, BookingState>(
+                  buildWhen: (_, s) =>
+                      s is BookingListLoading ||
+                      s is BookingSaloonListLoaded ||
+                      s is BookingListError,
+                  builder: (context, state) {
+                    if (state is BookingListLoading) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                        ),
+                      );
+                    }
+
+                    if (state is BookingListError) {
+                      return _ErrorRetry(
+                        message: state.message,
+                        onRetry: _applyFilter,
+                      );
+                    }
+
+                    final items = _filtered;
+
+                    if (items.isEmpty) {
+                      return const _EmptyState(
+                        label: 'No bookings found.',
+                      );
+                    }
+
+                    return RefreshIndicator(
+                      color: AppColors.primary,
+                      onRefresh: () async => _applyFilter(),
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        itemCount: items.length,
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final b = items[index];
+
+                          return _SaloonBookingCard(
+                            booking: b,
+                            isActioning: _actionBookingId == b.id,
+                            onVerifyOtp: b.status == BookingStatus.booked
+                                ? () => _showOtpDialog(context, b.id)
+                                : null,
+                            onComplete: b.status == BookingStatus.arrived
+                                ? () => _confirmComplete(context, b.id)
+                                : null,
+                            onCancel: (b.status == BookingStatus.booked ||
+                                    b.status == BookingStatus.arrived)
+                                ? () => _confirmCancel(context, b.id)
+                                : null,
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -500,11 +522,6 @@ class _SaloonBookingCard extends StatelessWidget {
               RichText(
                 text: TextSpan(
                   children: [
-                    const TextSpan(
-                      text: 'Your turn at ',
-                      style: TextStyle(
-                          fontSize: 12, color: AppColors.textSecondary),
-                    ),
                     TextSpan(
                       text: _arrivalTime,
                       style: const TextStyle(
