@@ -106,8 +106,13 @@ class _SessionsPageState extends State<SessionsPage> {
                     ),
                   )
                 else ...[
+                  // ── Day-overview ribbon ──────────────────────────────────
+                  SliverToBoxAdapter(
+                    child: _DayOverviewRow(sessions: state.sessions),
+                  ),
+                  // ── Session detail tiles ─────────────────────────────────
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                     sliver: SliverList.separated(
                       itemCount: state.sessions.length,
                       separatorBuilder: (_, __) =>
@@ -248,6 +253,191 @@ class _DateStripState extends State<_DateStrip> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Day-overview ribbon  — 3 compact cards, one per session
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DayOverviewRow extends StatelessWidget {
+  const _DayOverviewRow({required this.sessions});
+
+  final List<Session> sessions;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (int i = 0; i < sessions.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              Expanded(child: _SessionSummaryCard(session: sessions[i])),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SessionSummaryCard extends StatelessWidget {
+  const _SessionSummaryCard({required this.session});
+
+  final Session session;
+
+  static const _kLabelColors = {
+    'MORNING': Color(0xFFFF8F00),
+    'AFTERNOON': Color(0xFF1565C0),
+    'EVENING': Color(0xFF4527A0),
+  };
+
+  Color get _accent => _kLabelColors[session.label] ?? AppColors.primary;
+
+  String get _shortLabel => switch (session.label) {
+        'MORNING' => 'MORN',
+        'AFTERNOON' => 'AFT',
+        'EVENING' => 'EVE',
+        _ => session.label,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final barbers = session.barberCapacity;
+    final totalMinutes =
+        barbers.fold(0, (s, bc) => s + bc.totalCapacityMinutes);
+    final remainingMinutes =
+        barbers.fold(0, (s, bc) => s + bc.remainingMinutes);
+    final totalQueue = barbers.fold(0, (s, bc) => s + bc.queueDepth);
+    final fraction =
+        totalMinutes > 0 ? (remainingMinutes / totalMinutes).clamp(0.0, 1.0) : 0.0;
+    final pct = (fraction * 100).round();
+
+    final gaugeColor = fraction > 0.5
+        ? AppColors.success
+        : fraction > 0.2
+            ? const Color(0xFFFF8F00)
+            : AppColors.error;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider),
+        boxShadow: [
+          BoxShadow(
+            color: _accent.withAlpha(15),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(11),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Accent top bar
+            Container(height: 3, color: _accent),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 10, 8, 11),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+          // ── Arc gauge ──────────────────────────────────────────────────
+          SizedBox(
+            width: 46,
+            height: 46,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (!session.isActive)
+                  Container(
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.surface,
+                    ),
+                    child: const Icon(Icons.lock_outline,
+                        size: 18, color: AppColors.textHint),
+                  )
+                else ...[
+                  CircularProgressIndicator(
+                    value: barbers.isEmpty ? 0.0 : fraction,
+                    strokeWidth: 5,
+                    backgroundColor: AppColors.divider,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      barbers.isEmpty ? AppColors.divider : gaugeColor,
+                    ),
+                  ),
+                  Center(
+                    child: Text(
+                      barbers.isEmpty ? '—' : '$pct%',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: _accent,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 7),
+
+          // ── Label ──────────────────────────────────────────────────────
+          Text(
+            _shortLabel,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: _accent,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 2),
+
+          // ── Time range ─────────────────────────────────────────────────
+          Text(
+            '${session.startTime}–${session.endTime}',
+            style: const TextStyle(
+              fontSize: 9,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 5),
+
+          // ── Queue / status ─────────────────────────────────────────────
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: _accent.withAlpha(23),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              !session.isActive
+                  ? 'Closed'
+                  : barbers.isEmpty
+                      ? 'No barbers'
+                      : 'Q $totalQueue · ${barbers.length} barber${barbers.length == 1 ? '' : 's'}',
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                color: _accent,
+              ),
+            ),
+          ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Session tile  (MORNING / AFTERNOON / EVENING)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -288,7 +478,7 @@ class _SessionTile extends StatelessWidget {
           border: Border.all(color: AppColors.divider),
           boxShadow: [
             BoxShadow(
-              color: _accent.withOpacity(0.06),
+              color: _accent.withAlpha(15),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -300,7 +490,7 @@ class _SessionTile extends StatelessWidget {
             // ── Header ──────────────────────────────────────────────────
             Container(
               decoration: BoxDecoration(
-                color: _accent.withOpacity(0.08),
+                color: _accent.withAlpha(20),
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(13),
                 ),
@@ -311,7 +501,7 @@ class _SessionTile extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(7),
                     decoration: BoxDecoration(
-                      color: _accent.withOpacity(0.15),
+                      color: _accent.withAlpha(38),
                       borderRadius: BorderRadius.circular(9),
                     ),
                     child: Icon(_icon, size: 17, color: _accent),
@@ -485,7 +675,7 @@ class _Chip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withAlpha(31),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(

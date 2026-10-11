@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_event.dart';
+import '../data/models/salon_photo_model.dart';
 import '../data/repository/saloon_repo.dart';
 
 class SaloonEditPage extends StatefulWidget {
@@ -37,10 +40,15 @@ class _SaloonEditPageState extends State<SaloonEditPage> {
   bool _locating = false;
   bool _saving = false;
 
+  List<SalonPhoto> _photos = [];
+  bool _photosLoading = true;
+  bool _uploadingPhoto = false;
+
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.saloonName);
+    _loadPhotos();
   }
 
   @override
@@ -48,6 +56,120 @@ class _SaloonEditPageState extends State<SaloonEditPage> {
     _nameController.dispose();
     _locationNameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadPhotos() async {
+    try {
+      final photos = await widget.saloonRepository.fetchPhotos(
+        saloonId: widget.saloonId,
+      );
+      if (mounted) {
+        setState(() {
+          _photos = photos;
+          _photosLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _photosLoading = false);
+    }
+  }
+
+  Future<void> _addPhoto() async {
+    final picker = ImagePicker();
+    final XFile? picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 85,
+    );
+    if (picked == null || !mounted) return;
+
+    setState(() => _uploadingPhoto = true);
+    try {
+      var bytes = await picked.readAsBytes();
+      bytes = await _compressToUnder5MB(bytes);
+
+      final photo = await widget.saloonRepository.uploadPhoto(
+        saloonId: widget.saloonId,
+        imageBytes: bytes,
+        fileName: picked.name,
+        displayOrder: _photos.length,
+      );
+
+      if (mounted) setState(() => _photos = [..._photos, photo]);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mapSaloonApiException(e).message)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not upload photo: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
+
+  Future<void> _deletePhoto(String photoId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Photo'),
+        content: const Text('Remove this photo from the gallery?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    try {
+      await widget.saloonRepository.deletePhoto(
+        saloonId: widget.saloonId,
+        photoId: photoId,
+      );
+      if (mounted) {
+        setState(() => _photos = _photos.where((p) => p.id != photoId).toList());
+      }
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mapSaloonApiException(e).message)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not delete photo: $e')),
+      );
+    }
+  }
+
+  Future<Uint8List> _compressToUnder5MB(Uint8List bytes) async {
+    const maxBytes = 5 * 1024 * 1024;
+    if (bytes.length <= maxBytes) return bytes;
+
+    for (final quality in [70, 55, 40, 25]) {
+      final compressed = await FlutterImageCompress.compressWithList(
+        bytes,
+        quality: quality,
+        format: CompressFormat.jpeg,
+      );
+      if (compressed.length <= maxBytes) return compressed;
+    }
+
+    throw Exception(
+      'Image is too large to compress under 5 MB. Please choose a smaller image.',
+    );
   }
 
   Future<void> _getLocation() async {
@@ -194,7 +316,15 @@ class _SaloonEditPageState extends State<SaloonEditPage> {
               saloonName: widget.saloonName,
               saloonId: widget.saloonId,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            _GallerySection(
+              photos: _photos,
+              isLoading: _photosLoading,
+              isUploading: _uploadingPhoto,
+              onAdd: _addPhoto,
+              onDelete: _deletePhoto,
+            ),
+            const SizedBox(height: 16),
             Form(
               key: _formKey,
               child: Column(
@@ -224,9 +354,12 @@ class _SaloonEditPageState extends State<SaloonEditPage> {
                     subtitle: _lat != null && _lng != null
                         ? '${_lat!.toStringAsFixed(4)}, ${_lng!.toStringAsFixed(4)}'
                         : 'No coordinates selected yet',
-                    icon: _lat != null ? Icons.my_location_rounded : Icons.location_searching_rounded,
+                    icon: _lat != null
+                        ? Icons.my_location_rounded
+                        : Icons.location_searching_rounded,
                     isLoading: _locating,
-                    actionLabel: _lat != null ? 'Refresh Location' : 'Use Current Location',
+                    actionLabel:
+                        _lat != null ? 'Refresh Location' : 'Use Current Location',
                     onTap: _getLocation,
                   ),
                   const SizedBox(height: 14),
@@ -286,6 +419,215 @@ class _SaloonEditPageState extends State<SaloonEditPage> {
   }
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Gallery section
+// ──────────────────────────────────────────────────────────────────────────────
+
+class _GallerySection extends StatelessWidget {
+  const _GallerySection({
+    required this.photos,
+    required this.isLoading,
+    required this.isUploading,
+    required this.onAdd,
+    required this.onDelete,
+  });
+
+  final List<SalonPhoto> photos;
+  final bool isLoading;
+  final bool isUploading;
+  final VoidCallback onAdd;
+  final void Function(String photoId) onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Gallery Photos',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (!isLoading)
+                Text(
+                  '${photos.length} photo${photos.length == 1 ? '' : 's'}',
+                  style: const TextStyle(
+                    color: AppColors.textHint,
+                    fontSize: 12,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (isLoading)
+            const SizedBox(
+              height: 90,
+              child: Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            )
+          else
+            SizedBox(
+              height: 90,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  ...photos.map(
+                    (photo) => _PhotoTile(
+                      key: ValueKey(photo.id),
+                      photo: photo,
+                      onDelete: () => onDelete(photo.id),
+                    ),
+                  ),
+                  _AddPhotoTile(
+                    onTap: isUploading ? null : onAdd,
+                    isUploading: isUploading,
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhotoTile extends StatelessWidget {
+  const _PhotoTile({super.key, required this.photo, required this.onDelete});
+
+  final SalonPhoto photo;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              photo.photoUrl,
+              width: 90,
+              height: 90,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 90,
+                height: 90,
+                color: AppColors.surfaceVariant,
+                child: const Icon(
+                  Icons.broken_image_outlined,
+                  color: AppColors.textHint,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 4,
+            right: 4,
+            child: GestureDetector(
+              onTap: onDelete,
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: const Icon(
+                  Icons.close,
+                  color: Colors.white,
+                  size: 14,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddPhotoTile extends StatelessWidget {
+  const _AddPhotoTile({this.onTap, required this.isUploading});
+
+  final VoidCallback? onTap;
+  final bool isUploading;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 90,
+        height: 90,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isUploading ? AppColors.textHint : AppColors.primary,
+            width: 1.5,
+          ),
+          color: AppColors.primary.withAlpha(10),
+        ),
+        child: isUploading
+            ? const Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primary,
+                  ),
+                ),
+              )
+            : const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.add_photo_alternate_outlined,
+                    color: AppColors.primary,
+                    size: 28,
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Add Photo',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Existing helper widgets
+// ──────────────────────────────────────────────────────────────────────────────
+
 class _EditorHeader extends StatelessWidget {
   const _EditorHeader({required this.saloonName, required this.saloonId});
 
@@ -339,9 +681,9 @@ class _EditorHeader extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                Text(
+                const Text(
                   'Update profile, location, and operating hours.',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 13,
                   ),

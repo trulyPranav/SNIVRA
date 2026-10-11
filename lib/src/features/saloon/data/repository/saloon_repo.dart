@@ -1,7 +1,12 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
+
 import '../../../../core/errors/api_error.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_exception.dart';
 import '../models/saloon_model.dart';
+import '../models/salon_photo_model.dart';
 
 class SaloonRepository {
   SaloonRepository({required ApiClient apiClient}) : _apiClient = apiClient;
@@ -71,6 +76,59 @@ class SaloonRepository {
         requiresAuth: true,
       );
       return Saloon.fromJson(data['saloon'] as Map<String, dynamic>);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException(message: e.toString());
+    }
+  }
+  Future<List<SalonPhoto>> fetchPhotos({required String saloonId}) async {
+    try {
+      final data = await _apiClient.getJson('/saloons/$saloonId/photos');
+      final list = data['photos'] as List<dynamic>;
+      return list
+          .map((e) => SalonPhoto.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException(message: e.toString());
+    }
+  }
+
+  Future<SalonPhoto> uploadPhoto({
+    required String saloonId,
+    required Uint8List imageBytes,
+    required String fileName,
+    int displayOrder = 0,
+  }) async {
+    try {
+      final formData = FormData.fromMap({
+        'photo': MultipartFile.fromBytes(imageBytes, filename: fileName),
+        'display_order': displayOrder.toString(),
+      });
+      final data = await _apiClient.postMultipart(
+        '/saloons/$saloonId/photos',
+        formData: formData,
+        requiresAuth: true,
+      );
+      return SalonPhoto.fromJson(data['photo'] as Map<String, dynamic>);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException(message: e.toString());
+    }
+  }
+
+  Future<void> deletePhoto({
+    required String saloonId,
+    required String photoId,
+  }) async {
+    try {
+      await _apiClient.deleteJson(
+        '/saloons/$saloonId/photos/$photoId',
+        requiresAuth: true,
+      );
     } on ApiException {
       rethrow;
     } catch (e) {

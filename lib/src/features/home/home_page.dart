@@ -253,537 +253,73 @@ class _HomeContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final isOwner = user.role == UserRole.owner;
 
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      children: [
-        // Saloon status card — owner only
-        if (isOwner) ...[
-          _SaloonStatusCard(
-            saloonId: saloonId,
-            saloonName: saloonName,
-            isOpen: state.isOpen,
-            isActioning: state.actioningId == 'saloon',
-          ),
-          const SizedBox(height: 14),
-        ],
-
-        // Section header
-        _SectionHeader(
-          icon: Icons.group_outlined,
-          label: isOwner ? 'Barber Availability' : 'My Availability',
-        ),
-        const SizedBox(height: 10),
-
-        // Barber availability cards
-        ...(() {
-          final barbers = isOwner
-              ? state.barbers
-              : state.barbers.where((b) => b.id == user.id).toList();
-
-          if (barbers.isEmpty) {
-            return [
-              const _EmptyCard(label: 'No barbers found for this saloon.'),
-            ];
-          }
-
-          return barbers.map((barber) {
-            // Owner can manage any barber; barber can only manage themselves.
-            final canManage = isOwner || barber.id == user.id;
-            // When owner sets for themselves, pass null to API; for others pass barberId.
-            // When barber acts for themselves, also pass null.
-            // We always know barberId for optimistic update — just need what to send to API.
-            final apiBarberIdParam = isOwner && barber.id != user.id ? barber.id : null;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _BarberAvailabilityCard(
-                barber: barber,
-                saloonId: saloonId,
-                isActioning: state.actioningId == barber.id,
-                canManage: canManage,
-                apiBarberIdParam: apiBarberIdParam,
-              ),
-            );
-          }).toList();
-        })(),
-
-        // Services section — owner only
-        if (isOwner) ...[
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              const Expanded(
-                child: _SectionHeader(
-                  icon: Icons.content_cut_rounded,
-                  label: 'Services',
-                ),
-              ),
-              _SmallButton(
-                label: '+ Add',
-                color: AppColors.primary,
-                onTap: () => _showServiceDialog(context, saloonId: saloonId),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (state.services.isEmpty)
-            const _EmptyCard(label: 'No services yet. Tap "+ Add" to create one.')
-          else
-            ...state.services.map((service) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _ServiceCard(
-                    service: service,
-                    saloonId: saloonId,
-                    isActioning: state.actioningId == service.id,
-                  ),
-                )),
-        ],
-      ],
-    );
-  }
-}
-
-void _showServiceDialog(
-  BuildContext context, {
-  required String saloonId,
-  SaloonService? existing,
-}) {
-  showDialog<void>(
-    context: context,
-    builder: (_) => BlocProvider.value(
-      value: context.read<HomeBloc>(),
-      child: _ServiceDialog(saloonId: saloonId, existing: existing),
-    ),
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Service card (owner only)
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _ServiceCard extends StatelessWidget {
-  const _ServiceCard({
-    required this.service,
-    required this.saloonId,
-    required this.isActioning,
-  });
-
-  final SaloonService service;
-  final String saloonId;
-  final bool isActioning;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withAlpha(10),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Info column
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        service.name,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                    if (!service.isActive)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.textHint.withAlpha(25),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Text(
-                          'Inactive',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: AppColors.textHint,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                if (service.description != null &&
-                    service.description!.isNotEmpty) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    service.description!,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    if (service.price != null) ...[
-                      const Icon(Icons.currency_rupee,
-                          size: 13, color: AppColors.primary),
-                      Text(
-                        service.price!.toStringAsFixed(0),
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                    ],
-                    if (service.durationMinutes != null)
-                      Row(
-                        children: [
-                          const Icon(Icons.timer_outlined,
-                              size: 13, color: AppColors.textSecondary),
-                          const SizedBox(width: 3),
-                          Text(
-                            '${service.durationMinutes} min',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Actions
-          if (isActioning)
-            const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppColors.primary,
-              ),
+          if (isOwner)
+            _SaloonStatusCard(
+              saloonId: saloonId,
+              saloonName: saloonName,
+              isOpen: state.isOpen,
+              isActioning: state.actioningId == 'saloon',
             )
           else
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                GestureDetector(
-                  onTap: () => _showServiceDialog(
-                    context,
-                    saloonId: saloonId,
-                    existing: service,
-                  ),
-                  child: const Icon(Icons.edit_outlined,
-                      size: 18, color: AppColors.primary),
-                ),
-                const SizedBox(width: 12),
-                GestureDetector(
-                  onTap: () => _confirmDeleteService(
-                    context,
-                    saloonId: saloonId,
-                    service: service,
-                  ),
-                  child: const Icon(Icons.delete_outline,
-                      size: 18, color: AppColors.error),
-                ),
-              ],
-            ),
+            const SizedBox(),
+          const _BrandTagline(),
         ],
       ),
     );
   }
 }
 
-void _confirmDeleteService(
-  BuildContext context, {
-  required String saloonId,
-  required SaloonService service,
-}) {
-  showDialog<void>(
-    context: context,
-    builder: (dialogCtx) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      title: const Text(
-        'Delete Service',
-        style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary),
-      ),
-      content: Text(
-        'Delete "${service.name}"? This cannot be undone. To hide it temporarily, use Edit and toggle it inactive.',
-        style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogCtx),
-          child: const Text('Cancel',
-              style: TextStyle(color: AppColors.textSecondary)),
-        ),
-        TextButton(
-          onPressed: () {
-            Navigator.pop(dialogCtx);
-            context.read<HomeBloc>().add(HomeServiceDeleteRequested(
-                  saloonId: saloonId,
-                  serviceId: service.id,
-                ));
-          },
-          child: const Text('Delete',
-              style: TextStyle(color: AppColors.error)),
-        ),
-      ],
-    ),
-  );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Service add / edit dialog
+// Brand tagline — sits at the bottom of the home scroll
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _ServiceDialog extends StatefulWidget {
-  const _ServiceDialog({required this.saloonId, this.existing});
-
-  final String saloonId;
-  final SaloonService? existing;
-
-  @override
-  State<_ServiceDialog> createState() => _ServiceDialogState();
-}
-
-class _ServiceDialogState extends State<_ServiceDialog> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _name;
-  late final TextEditingController _desc;
-  late final TextEditingController _price;
-  late final TextEditingController _duration;
-  bool _isActive = true;
-
-  bool get _isEdit => widget.existing != null;
-
-  @override
-  void initState() {
-    super.initState();
-    final s = widget.existing;
-    _name = TextEditingController(text: s?.name ?? '');
-    _desc = TextEditingController(text: s?.description ?? '');
-    _price = TextEditingController(
-        text: s?.price != null ? s!.price!.toStringAsFixed(0) : '');
-    _duration = TextEditingController(
-        text: s?.durationMinutes?.toString() ?? '');
-    _isActive = s?.isActive ?? true;
-  }
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _desc.dispose();
-    _price.dispose();
-    _duration.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    if (!_formKey.currentState!.validate()) return;
-    final price = _price.text.trim().isEmpty
-        ? null
-        : double.tryParse(_price.text.trim());
-    final duration = _duration.text.trim().isEmpty
-        ? null
-        : int.tryParse(_duration.text.trim());
-
-    if (_isEdit) {
-      context.read<HomeBloc>().add(HomeServiceUpdateRequested(
-            saloonId: widget.saloonId,
-            serviceId: widget.existing!.id,
-            name: _name.text.trim(),
-            description:
-                _desc.text.trim().isEmpty ? null : _desc.text.trim(),
-            price: price,
-            durationMinutes: duration,
-            isActive: _isActive,
-          ));
-    } else {
-      context.read<HomeBloc>().add(HomeServiceAddRequested(
-            saloonId: widget.saloonId,
-            name: _name.text.trim(),
-            description:
-                _desc.text.trim().isEmpty ? null : _desc.text.trim(),
-            price: price,
-            durationMinutes: duration,
-          ));
-    }
-    Navigator.pop(context);
-  }
+class _BrandTagline extends StatelessWidget {
+  const _BrandTagline();
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      title: Text(
-        _isEdit ? 'Edit Service' : 'Add Service',
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary,
-        ),
-      ),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _DialogField(
-                controller: _name,
-                label: 'Name',
-                hint: 'e.g. Haircut',
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Name is required' : null,
-              ),
-              const SizedBox(height: 10),
-              _DialogField(
-                controller: _desc,
-                label: 'Description (optional)',
-                hint: 'Short description',
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _DialogField(
-                      controller: _price,
-                      label: 'Price (₹)',
-                      hint: '0',
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _DialogField(
-                      controller: _duration,
-                      label: 'Duration (min)',
-                      hint: '30',
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                ],
-              ),
-              if (_isEdit) ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Text(
-                      'Active',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const Spacer(),
-                    Switch(
-                      value: _isActive,
-                      activeColor: AppColors.primary,
-                      onChanged: (v) => setState(() => _isActive = v),
-                    ),
-                  ],
-                ),
-              ],
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'crafted with ❤️',
+          style: TextStyle(
+            fontSize: 30,
+            fontWeight: FontWeight.w300,
+            height: 1.1,
+            color: AppColors.textPrimary.withAlpha(68),
+            letterSpacing: 1.5,
           ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel',
-              style: TextStyle(color: AppColors.textSecondary)),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        const SizedBox(height: 2),
+        Text(
+          'SNIVRA',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 52,
+            fontWeight: FontWeight.w800,
+            color: AppColors.primary.withAlpha(22),
+            letterSpacing: 6,
           ),
-          onPressed: _submit,
-          child: Text(_isEdit ? 'Save' : 'Add'),
         ),
+        // const SizedBox(height: 4),
+        // Text(
+        //   'for salons & customers alike.',
+        //   style: TextStyle(
+        //     fontSize: 22,
+        //     fontWeight: FontWeight.w600,
+        //     height: 1.15,
+        //     color: AppColors.textPrimary.withAlpha(18),
+        //     letterSpacing: -0.2,
+        //   ),
+        // ),
       ],
-    );
-  }
-}
-
-class _DialogField extends StatelessWidget {
-  const _DialogField({
-    required this.controller,
-    required this.label,
-    this.hint,
-    this.keyboardType,
-    this.validator,
-  });
-
-  final TextEditingController controller;
-  final String label;
-  final String? hint;
-  final TextInputType? keyboardType;
-  final String? Function(String?)? validator;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      validator: validator,
-      style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        labelStyle:
-            const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-        hintStyle:
-            const TextStyle(fontSize: 12, color: AppColors.textHint),
-        isDense: true,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: AppColors.divider),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: AppColors.divider),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide:
-              const BorderSide(color: AppColors.primary, width: 1.5),
-        ),
-      ),
     );
   }
 }
@@ -1064,6 +600,112 @@ class _BarberAvailabilityCard extends StatelessWidget {
 // Unavailability time-range dialog
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Set Off bottom sheet (owner view — lists all barbers)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SetOffSheet extends StatelessWidget {
+  const _SetOffSheet({required this.saloonId, required this.ownerUserId});
+
+  final String saloonId;
+  final String ownerUserId;
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.5,
+      minChildSize: 0.3,
+      maxChildSize: 0.85,
+      builder: (context, scroll) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 12, bottom: 6),
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withAlpha(12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.power_settings_new_rounded,
+                        color: AppColors.error, size: 18),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Set Off',
+                    style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: AppColors.divider),
+            Expanded(
+              child: BlocBuilder<HomeBloc, HomeState>(
+                builder: (context, state) {
+                  if (state is! HomeLoaded) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                          color: AppColors.primary, strokeWidth: 2),
+                    );
+                  }
+                  final barbers = state.barbers;
+                  if (barbers.isEmpty) {
+                    return const Center(
+                      child: Text('No barbers found.',
+                          style:
+                              TextStyle(color: AppColors.textSecondary)),
+                    );
+                  }
+                  return ListView.separated(
+                    controller: scroll,
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+                    itemCount: barbers.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(height: 8),
+                    itemBuilder: (context, i) {
+                      final barber = barbers[i];
+                      return _BarberAvailabilityCard(
+                        barber: barber,
+                        saloonId: saloonId,
+                        isActioning: state.actioningId == barber.id,
+                        canManage: true,
+                        apiBarberIdParam: barber.id == ownerUserId
+                            ? null
+                            : barber.id,
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _UnavailabilityRange {
   const _UnavailabilityRange({required this.from, required this.until});
   final DateTime from;
@@ -1329,32 +971,6 @@ class _PickerChip extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared small widgets
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: AppColors.primary),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-            letterSpacing: 0.2,
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 class _StatusPill extends StatelessWidget {
   const _StatusPill({required this.isOpen});
@@ -1665,6 +1281,98 @@ class _AppDrawerState extends State<_AppDrawer>
     return (parts.first[0] + parts.last[0]).toUpperCase();
   }
 
+  Future<void> _onSetOffTapped(bool isOwner, AuthUser user) async {
+    Navigator.of(context).pop();
+    await Future.microtask(() {});
+    if (!mounted) return;
+    if (isOwner) {
+      if (user.saloons.isEmpty) return;
+      _showOwnerSetOffSheet(user.saloons.first.id, user.id);
+    } else {
+      _setOffBarberSelf(user);
+    }
+  }
+
+  void _showOwnerSetOffSheet(String saloonId, String ownerUserId) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => BlocProvider.value(
+        value: context.read<HomeBloc>(),
+        child: _SetOffSheet(saloonId: saloonId, ownerUserId: ownerUserId),
+      ),
+    );
+  }
+
+  Future<void> _setOffBarberSelf(AuthUser user) async {
+    final homeState = context.read<HomeBloc>().state;
+    if (homeState is! HomeLoaded || user.saloons.isEmpty) return;
+    final saloonId = user.saloons.first.id;
+    final self = homeState.barbers.where((b) => b.id == user.id).firstOrNull;
+    if (self == null) return;
+
+    if (self.isAvailable) {
+      final result = await showDialog<_UnavailabilityRange>(
+        context: context,
+        builder: (_) => const _UnavailabilityDialog(),
+      );
+      if (result == null || !mounted) return;
+      context.read<HomeBloc>().add(HomeBarberUnavailableRequested(
+            saloonId: saloonId,
+            barberId: self.id,
+            unavailableFrom: result.from,
+            unavailableUntil: result.until,
+          ));
+    } else {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          title: const Text(
+            'Restore Availability',
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary),
+          ),
+          content: const Text(
+            "You're currently set off. Restore your availability now?",
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel',
+                  style: TextStyle(color: AppColors.textSecondary)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Restore'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true && mounted) {
+        context.read<HomeBloc>().add(HomeBarberRestoreRequested(
+              saloonId: saloonId,
+              barberId: self.id,
+            ));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = widget.user;
@@ -1887,13 +1595,67 @@ class _AppDrawerState extends State<_AppDrawer>
             //     },
             //   ),
 
-            if(isOwner)
+            if (isOwner)
+              _DrawerTile(
+                icon: Icons.content_cut_rounded,
+                label: 'Services',
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.textHint,
+                ),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  Future.microtask(() {
+                    Navigator.of(context).pushNamed('/services');
+                  });
+                },
+              ),
+
+            if (isOwner)
               _DrawerTile(
                 icon: Icons.group_outlined,
                 label: 'Manage',
                 trailing: _ComingSoonBadge(),
                 onTap: () {},
               ),
+
+            if (user.role != UserRole.customer) ...[
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: GestureDetector(
+                  onTap: () => _onSetOffTapped(isOwner, user),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 13),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withAlpha(8),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: AppColors.error.withAlpha(55), width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.power_settings_new_rounded,
+                            color: AppColors.error, size: 20),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Set Off',
+                          style: TextStyle(
+                            color: AppColors.error,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(Icons.chevron_right_rounded,
+                            color: AppColors.error.withAlpha(130), size: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
 
             const Spacer(),
 
