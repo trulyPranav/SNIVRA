@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -94,29 +96,12 @@ class _HomePageState extends State<HomePage> {
             centerTitle: false,
           ),
           drawer: _AppDrawer(user: user),
+          extendBody: true,
           body: pages[safeIndex],
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: safeIndex,
-            onDestinationSelected: (i) =>
-                setState(() => _currentIndex = i),
-            backgroundColor: Colors.white,
-            indicatorColor: AppColors.primary.withAlpha(20),
-            surfaceTintColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            elevation: 0,
-            labelBehavior:
-                NavigationDestinationLabelBehavior.alwaysShow,
-            destinations: navItems
-                .map(
-                  (item) => NavigationDestination(
-                    icon: Icon(item.icon,
-                        color: AppColors.textSecondary),
-                    selectedIcon: Icon(item.activeIcon,
-                        color: AppColors.primary),
-                    label: item.label,
-                  ),
-                )
-                .toList(),
+          bottomNavigationBar: _GlassyNavBar(
+            items: navItems,
+            currentIndex: safeIndex,
+            onTap: (i) => setState(() => _currentIndex = i),
           ),
         );
       },
@@ -134,6 +119,104 @@ class _NavItem {
   final String label;
   final IconData icon;
   final IconData activeIcon;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Floating glassy nav bar
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _GlassyNavBar extends StatelessWidget {
+  const _GlassyNavBar({
+    required this.items,
+    required this.currentIndex,
+    required this.onTap,
+  });
+
+  final List<_NavItem> items;
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 0, 20, bottomPadding + 12),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Container(
+            height: 64,
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(100),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: Colors.white.withAlpha(80),
+                width: 0.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(10),
+                  blurRadius: 30,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: List.generate(items.length, (i) {
+                final selected = i == currentIndex;
+                final item = items[i];
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onTap(i),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOutCubic,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? AppColors.primary.withAlpha(18)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          selected ? item.activeIcon : item.icon,
+                          size: 22,
+                          color: selected
+                              ? AppColors.primary
+                              : AppColors.textHint,
+                        ),
+                        const SizedBox(height: 3),
+                        AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 250),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: selected
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: selected
+                                ? AppColors.primary
+                                : AppColors.textHint,
+                          ),
+                          child: Text(item.label),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -308,6 +391,7 @@ class _BrandTagline extends StatelessWidget {
             letterSpacing: 6,
           ),
         ),
+        const SizedBox(height: 70),
         // const SizedBox(height: 4),
         // Text(
         //   'for salons & customers alike.',
