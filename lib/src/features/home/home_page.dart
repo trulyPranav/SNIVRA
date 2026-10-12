@@ -125,7 +125,7 @@ class _NavItem {
 // Floating glassy nav bar
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _GlassyNavBar extends StatelessWidget {
+class _GlassyNavBar extends StatefulWidget {
   const _GlassyNavBar({
     required this.items,
     required this.currentIndex,
@@ -137,8 +137,72 @@ class _GlassyNavBar extends StatelessWidget {
   final ValueChanged<int> onTap;
 
   @override
+  State<_GlassyNavBar> createState() => _GlassyNavBarState();
+}
+
+class _GlassyNavBarState extends State<_GlassyNavBar>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _positionAnim;
+  late Animation<double> _stretchAnim;
+
+  int _prevIndex = 0;
+  int _targetIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _prevIndex = widget.currentIndex;
+    _targetIndex = widget.currentIndex;
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    _positionAnim = Tween<double>(
+      begin: widget.currentIndex.toDouble(),
+      end: widget.currentIndex.toDouble(),
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    ));
+    _stretchAnim = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.6), weight: 35),
+      TweenSequenceItem(tween: Tween(begin: 1.6, end: 0.85), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 0.85, end: 1.0), weight: 25),
+    ]).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    ));
+  }
+
+  @override
+  void didUpdateWidget(covariant _GlassyNavBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentIndex != widget.currentIndex) {
+      _prevIndex = oldWidget.currentIndex;
+      _targetIndex = widget.currentIndex;
+      _positionAnim = Tween<double>(
+        begin: _prevIndex.toDouble(),
+        end: _targetIndex.toDouble(),
+      ).animate(CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ));
+      _controller.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+    final count = widget.items.length;
+
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 0, 20, bottomPadding + 12),
       child: ClipRRect(
@@ -163,54 +227,92 @@ class _GlassyNavBar extends StatelessWidget {
                 ),
               ],
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: List.generate(items.length, (i) {
-                final selected = i == currentIndex;
-                final item = items[i];
-                return GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => onTap(i),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeOutCubic,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? AppColors.primary.withAlpha(18)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          selected ? item.activeIcon : item.icon,
-                          size: 22,
-                          color: selected
-                              ? AppColors.primary
-                              : AppColors.textHint,
-                        ),
-                        const SizedBox(height: 3),
-                        AnimatedDefaultTextStyle(
-                          duration: const Duration(milliseconds: 250),
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: selected
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                            color: selected
-                                ? AppColors.primary
-                                : AppColors.textHint,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final slotWidth = constraints.maxWidth / count;
+                const blobWidth = 56.0;
+                const blobHeight = 44.0;
+
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // ── Sliding teardrop highlight ──────────────────
+                    AnimatedBuilder(
+                      animation: _controller,
+                      builder: (context, _) {
+                        final pos = _positionAnim.value;
+                        final stretch = _stretchAnim.value;
+                        final cx = slotWidth * pos +
+                            slotWidth / 2 -
+                            (blobWidth * stretch) / 2;
+
+                        return Positioned(
+                          left: cx,
+                          child: Container(
+                            width: blobWidth * stretch,
+                            height: blobHeight / stretch.clamp(0.9, 1.2),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withAlpha(18),
+                              borderRadius: BorderRadius.circular(
+                                  14 / stretch.clamp(0.9, 1.3)),
+                            ),
                           ),
-                          child: Text(item.label),
-                        ),
-                      ],
+                        );
+                      },
                     ),
-                  ),
+
+                    // ── Tab items ──────────────────────────────────
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: List.generate(count, (i) {
+                        final selected = i == widget.currentIndex;
+                        final item = widget.items[i];
+                        return GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => widget.onTap(i),
+                          child: SizedBox(
+                            width: slotWidth,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                AnimatedSwitcher(
+                                  duration:
+                                      const Duration(milliseconds: 250),
+                                  child: Icon(
+                                    selected
+                                        ? item.activeIcon
+                                        : item.icon,
+                                    key: ValueKey(selected),
+                                    size: 22,
+                                    color: selected
+                                        ? AppColors.primary
+                                        : AppColors.textHint,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                AnimatedDefaultTextStyle(
+                                  duration:
+                                      const Duration(milliseconds: 250),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: selected
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                    color: selected
+                                        ? AppColors.primary
+                                        : AppColors.textHint,
+                                  ),
+                                  child: Text(item.label),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
                 );
-              }),
+              },
             ),
           ),
         ),
@@ -334,24 +436,13 @@ class _HomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isOwner = user.role == UserRole.owner;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(16, 14, 16, 28),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (isOwner)
-            _SaloonStatusCard(
-              saloonId: saloonId,
-              saloonName: saloonName,
-              isOpen: state.isOpen,
-              isActioning: state.actioningId == 'saloon',
-            )
-          else
-            const SizedBox(),
-          const _BrandTagline(),
+          _BrandTagline(),
         ],
       ),
     );
@@ -408,131 +499,6 @@ class _BrandTagline extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Saloon status card (owner only)
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _SaloonStatusCard extends StatelessWidget {
-  const _SaloonStatusCard({
-    required this.saloonId,
-    required this.saloonName,
-    required this.isOpen,
-    required this.isActioning,
-  });
-
-  final String saloonId;
-  final String saloonName;
-  final bool? isOpen;
-  final bool isActioning;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withAlpha(15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.storefront_rounded,
-              color: AppColors.primary,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  saloonName,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 3),
-                _StatusPill(isOpen: isOpen),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Toggle area
-          if (isActioning)
-            const SizedBox(
-              width: 36,
-              height: 22,
-              child: Center(
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-            )
-          else if (isOpen == null)
-            // Unknown state — show compact open/close buttons
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _CompactToggleBtn(
-                  label: 'Open',
-                  color: AppColors.success,
-                  onTap: () => context.read<HomeBloc>().add(
-                        HomeSaloonOpenToggled(
-                          saloonId: saloonId,
-                          isOpen: true,
-                        ),
-                      ),
-                ),
-                const SizedBox(width: 6),
-                _CompactToggleBtn(
-                  label: 'Close',
-                  color: AppColors.error,
-                  onTap: () => context.read<HomeBloc>().add(
-                        HomeSaloonOpenToggled(
-                          saloonId: saloonId,
-                          isOpen: false,
-                        ),
-                      ),
-                ),
-              ],
-            )
-          else
-            Switch(
-              value: isOpen!,
-              activeColor: AppColors.primary,
-              onChanged: (val) => context.read<HomeBloc>().add(
-                    HomeSaloonOpenToggled(saloonId: saloonId, isOpen: val),
-                  ),
-            ),
-        ],
-      ),
-    );
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Barber availability card
@@ -1056,47 +1022,6 @@ class _PickerChip extends StatelessWidget {
 // Shared small widgets
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.isOpen});
-
-  final bool? isOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color dotColor;
-    final String label;
-
-    if (isOpen == null) {
-      dotColor = AppColors.textHint;
-      label = 'Status unknown';
-    } else if (isOpen!) {
-      dotColor = AppColors.success;
-      label = 'Open';
-    } else {
-      dotColor = AppColors.error;
-      label = 'Closed';
-    }
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 7,
-          height: 7,
-          decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: isOpen == null ? AppColors.textHint : AppColors.textSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 class _AvailabilityChip extends StatelessWidget {
   const _AvailabilityChip({required this.isAvailable});
@@ -1222,33 +1147,6 @@ class _CompactToggleBtn extends StatelessWidget {
   }
 }
 
-class _EmptyCard extends StatelessWidget {
-  const _EmptyCard({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: Center(
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            color: AppColors.textSecondary,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
-  }
-}
 
 class _ErrorRetry extends StatelessWidget {
   const _ErrorRetry({required this.message, required this.onRetry});
@@ -1631,6 +1529,137 @@ class _AppDrawerState extends State<_AppDrawer>
                   ),
                 ),
               ),
+
+              // ── Saloon open/close toggle (owners only) ────────────
+              if (isOwner)
+                BlocBuilder<HomeBloc, HomeState>(
+                  buildWhen: (_, s) =>
+                      s is HomeLoaded ||
+                      s is HomeLoading ||
+                      s is HomeActionError,
+                  builder: (context, homeState) {
+                    final isOpen =
+                        homeState is HomeLoaded ? homeState.isOpen : null;
+                    final isActioning = homeState is HomeLoaded &&
+                        homeState.actioningId == 'saloon';
+                    final saloonId = user.saloons.first.id;
+
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isOpen == true
+                              ? AppColors.success.withAlpha(10)
+                              : isOpen == false
+                                  ? AppColors.error.withAlpha(8)
+                                  : AppColors.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isOpen == true
+                                ? AppColors.success.withAlpha(40)
+                                : isOpen == false
+                                    ? AppColors.error.withAlpha(35)
+                                    : AppColors.divider,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isOpen == true
+                                    ? AppColors.success
+                                    : isOpen == false
+                                        ? AppColors.error
+                                        : AppColors.textHint,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                isOpen == true
+                                    ? 'Saloon is Open'
+                                    : isOpen == false
+                                        ? 'Saloon is Closed'
+                                        : 'Saloon Status',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: isOpen == true
+                                      ? AppColors.success
+                                      : isOpen == false
+                                          ? AppColors.error
+                                          : AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                            if (isActioning)
+                              const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.primary),
+                              )
+                            else if (isOpen == null)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _CompactToggleBtn(
+                                    label: 'Open',
+                                    color: AppColors.success,
+                                    onTap: () =>
+                                        context.read<HomeBloc>().add(
+                                              HomeSaloonOpenToggled(
+                                                saloonId: saloonId,
+                                                isOpen: true,
+                                              ),
+                                            ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  _CompactToggleBtn(
+                                    label: 'Close',
+                                    color: AppColors.error,
+                                    onTap: () =>
+                                        context.read<HomeBloc>().add(
+                                              HomeSaloonOpenToggled(
+                                                saloonId: saloonId,
+                                                isOpen: false,
+                                              ),
+                                            ),
+                                  ),
+                                ],
+                              )
+                            else
+                              SizedBox(
+                                height: 24,
+                                child: Switch(
+                                  value: isOpen!,
+                                  activeTrackColor:
+                                      AppColors.success.withAlpha(120),
+                                  activeThumbColor: AppColors.success,
+                                  inactiveTrackColor:
+                                      AppColors.error.withAlpha(60),
+                                  onChanged: (val) =>
+                                      context.read<HomeBloc>().add(
+                                            HomeSaloonOpenToggled(
+                                              saloonId: saloonId,
+                                              isOpen: val,
+                                            ),
+                                          ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
               const Divider(
                 height: 1,
                 color: AppColors.divider,
