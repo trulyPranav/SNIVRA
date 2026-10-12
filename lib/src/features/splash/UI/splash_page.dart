@@ -1,12 +1,16 @@
+import 'dart:math' show pi, sin;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../core/theme/app_theme.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_event.dart';
 import '../bloc/splash_bloc.dart';
 import '../bloc/splash_event.dart';
 import '../bloc/splash_state.dart';
+
+const _kBrandLetters = ['S', 'N', 'I', 'V', 'R', 'A'];
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -17,124 +21,139 @@ class SplashPage extends StatefulWidget {
 
 class _SplashPageState extends State<SplashPage>
     with TickerProviderStateMixin {
-  late final AnimationController _mainController;
-  late final AnimationController _pulseController;
+  late final AnimationController _main;
+  late final AnimationController _shimmer;
+  late final AnimationController _breathe;
 
-  late final Animation<double> _bgOpacity;
-  late final Animation<double> _logoOpacity;
+  // Phase animations driven by _main (0 → 1 over 2400ms)
+  late final Animation<double> _bgFade;
+  late final Animation<double> _logoFade;
   late final Animation<double> _logoScale;
-  late final Animation<double> _glowRadius;
-  late final Animation<double> _titleOpacity;
-  late final Animation<double> _titleScale;
-  late final Animation<double> _taglineOpacity;
-  late final Animation<Offset> _taglineSlide;
-  late final Animation<double> _dotsOpacity;
+  late final Animation<double> _ringExpand;
+  late final Animation<double> _tagFade;
+  late final Animation<Offset> _tagSlide;
+  late final Animation<double> _dotsFade;
 
-  late final Animation<double> _pulseScale;
-  late final Animation<double> _pulseOpacity;
+  // Per-letter stagger (6 letters)
+  late final List<Animation<double>> _letterFade;
+  late final List<Animation<double>> _letterSlide;
+
+  // Shimmer line across brand name
+  late final Animation<double> _shimmerPos;
+
+  // Breathing pulse on logo ring
+  late final Animation<double> _breatheScale;
 
   @override
   void initState() {
     super.initState();
 
-    _mainController = AnimationController(
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ));
+
+    _main = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2200),
+      duration: const Duration(milliseconds: 2400),
     );
 
-    _pulseController = AnimationController(
+    _shimmer = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 2000),
+    )..repeat();
+
+    _breathe = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
     )..repeat(reverse: true);
 
-    _bgOpacity = Tween<double>(begin: 0, end: 1).animate(
+    // ── Phase curves ──
+
+    _bgFade = _curved(0.0, 0.20, Curves.easeOut);
+
+    _logoFade = _curved(0.08, 0.30, Curves.easeOut);
+    _logoScale = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.0, 0.25, curve: Curves.easeOut),
+        parent: _main,
+        curve: const Interval(0.08, 0.35, curve: Curves.easeOutBack),
       ),
     );
 
-    _logoOpacity = Tween<double>(begin: 0, end: 1).animate(
+    _ringExpand = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.1, 0.42, curve: Curves.easeOut),
+        parent: _main,
+        curve: const Interval(0.20, 0.50, curve: Curves.easeOutCubic),
       ),
     );
 
-    _logoScale = Tween<double>(begin: 0.4, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.1, 0.5, curve: Curves.easeOutBack),
-      ),
-    );
+    // Letter stagger: each letter fades/slides in across 0.35 → 0.72
+    const letterStart = 0.35;
+    const letterEnd = 0.72;
+    const letterSpan = letterEnd - letterStart;
+    _letterFade = List.generate(6, (i) {
+      final s = letterStart + (i / 6) * letterSpan;
+      final e = s + letterSpan * 0.45;
+      return _curved(s, e.clamp(0.0, 1.0), Curves.easeOut);
+    });
+    _letterSlide = List.generate(6, (i) {
+      final s = letterStart + (i / 6) * letterSpan;
+      final e = s + letterSpan * 0.5;
+      return Tween<double>(begin: 18, end: 0).animate(
+        CurvedAnimation(
+          parent: _main,
+          curve: Interval(s, e.clamp(0.0, 1.0), curve: Curves.easeOutCubic),
+        ),
+      );
+    });
 
-    _glowRadius = Tween<double>(begin: 0, end: 40).animate(
-      CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.3, 0.65, curve: Curves.easeOut),
-      ),
-    );
-
-    _titleOpacity = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.45, 0.7, curve: Curves.easeOut),
-      ),
-    );
-
-    _titleScale = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.45, 0.72, curve: Curves.easeOutBack),
-      ),
-    );
-
-    _taglineOpacity = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.65, 0.88, curve: Curves.easeOut),
-      ),
-    );
-
-    _taglineSlide = Tween<Offset>(
-      begin: const Offset(0, 0.5),
+    _tagFade = _curved(0.68, 0.85, Curves.easeOut);
+    _tagSlide = Tween<Offset>(
+      begin: const Offset(0, 0.35),
       end: Offset.zero,
     ).animate(
       CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.65, 0.88, curve: Curves.easeOut),
+        parent: _main,
+        curve: const Interval(0.68, 0.88, curve: Curves.easeOutCubic),
       ),
     );
 
-    _dotsOpacity = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.85, 1.0, curve: Curves.easeOut),
-      ),
+    _dotsFade = _curved(0.82, 1.0, Curves.easeOut);
+
+    // Shimmer sweep position -1 → 2
+    _shimmerPos = Tween<double>(begin: -1.0, end: 2.0).animate(_shimmer);
+
+    // Breathe scale 1.0 → 1.08
+    _breatheScale = Tween<double>(begin: 1.0, end: 1.08).animate(
+      CurvedAnimation(parent: _breathe, curve: Curves.easeInOut),
     );
 
-    _pulseScale = Tween<double>(begin: 1.0, end: 1.18).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-
-    _pulseOpacity = Tween<double>(begin: 0.12, end: 0.38).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-
-    _mainController.forward();
+    _main.forward();
     context.read<SplashBloc>().add(const SplashStarted());
+  }
+
+  Animation<double> _curved(double start, double end, Curve curve) {
+    return Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _main,
+        curve: Interval(start, end, curve: curve),
+      ),
+    );
   }
 
   @override
   void dispose() {
-    _mainController.dispose();
-    _pulseController.dispose();
+    _main.dispose();
+    _shimmer.dispose();
+    _breathe.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final mq = MediaQuery.of(context);
+    final w = mq.size.width;
+    final h = mq.size.height;
 
     return BlocListener<SplashBloc, SplashState>(
       listener: (context, state) {
@@ -151,190 +170,92 @@ class _SplashPageState extends State<SplashPage>
         }
       },
       child: AnimatedBuilder(
-        animation: Listenable.merge([_mainController, _pulseController]),
+        animation: Listenable.merge([_main, _shimmer, _breathe]),
         builder: (context, _) {
           return Scaffold(
             body: Opacity(
-              opacity: _bgOpacity.value,
+              opacity: _bgFade.value,
               child: Container(
                 width: double.infinity,
                 height: double.infinity,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
                     colors: [
-                      Color(0xFF070F1E),
-                      Color(0xFF0D1F3C),
-                      Color(0xFF1146A0),
+                      Color(0xFF060E1A),
+                      Color(0xFF0A1628),
+                      Color(0xFF0F2847),
+                      Color(0xFF1352A5),
                     ],
-                    stops: [0.0, 0.5, 1.0],
+                    stops: [0.0, 0.35, 0.7, 1.0],
                   ),
                 ),
                 child: Stack(
                   children: [
-                    // Decorative circle — top right
+                    // Ambient orb — top right
                     Positioned(
-                      top: -size.width * 0.28,
-                      right: -size.width * 0.22,
+                      top: -w * 0.35,
+                      right: -w * 0.25,
                       child: Container(
-                        width: size.width * 0.75,
-                        height: size.width * 0.75,
+                        width: w * 0.8,
+                        height: w * 0.8,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.white.withAlpha(10),
-                        ),
-                      ),
-                    ),
-                    // Decorative circle — bottom left
-                    Positioned(
-                      bottom: -size.height * 0.1,
-                      left: -size.width * 0.22,
-                      child: Container(
-                        width: size.width * 0.68,
-                        height: size.width * 0.68,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withAlpha(7),
-                        ),
-                      ),
-                    ),
-
-                    // Main content
-                    Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Pulse ring + glow + logo
-                          Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // Outer pulse ring
-                              Transform.scale(
-                                scale: _pulseScale.value,
-                                child: Container(
-                                  width: 152,
-                                  height: 152,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: Colors.white.withAlpha(
-                                        (_pulseOpacity.value * 255)
-                                            .round()
-                                            .clamp(0, 255),
-                                      ),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // Glow halo
-                              Container(
-                                width: 124,
-                                height: 124,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.white.withAlpha(
-                                        (_glowRadius.value * 1.2)
-                                            .round()
-                                            .clamp(0, 55),
-                                      ),
-                                      blurRadius: _glowRadius.value,
-                                      spreadRadius: _glowRadius.value * 0.25,
-                                    ),
-                                    BoxShadow(
-                                      color: AppColors.primary.withAlpha(130),
-                                      blurRadius: 32,
-                                      spreadRadius: 6,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              // Logo
-                              Opacity(
-                                opacity: _logoOpacity.value,
-                                child: Transform.scale(
-                                  scale: _logoScale.value,
-                                  child: Container(
-                                    width: 124,
-                                    height: 124,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white.withAlpha(45),
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: ClipOval(
-                                      child: Image.asset(
-                                        'assets/snivra.png',
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
+                          gradient: RadialGradient(
+                            colors: [
+                              const Color(0xFF1565C0).withAlpha(18),
+                              Colors.transparent,
                             ],
                           ),
-                          const SizedBox(height: 44),
-
-                          // SNIVRA title
-                          Opacity(
-                            opacity: _titleOpacity.value,
-                            child: Transform.scale(
-                              scale: _titleScale.value,
-                              child: Text(
-                                'SNIVRA',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .displayLarge
-                                    ?.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 10,
-                                    ),
-                              ),
-                            ),
+                        ),
+                      ),
+                    ),
+                    // Ambient orb — bottom left
+                    Positioned(
+                      bottom: -h * 0.08,
+                      left: -w * 0.3,
+                      child: Container(
+                        width: w * 0.7,
+                        height: w * 0.7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              Colors.white.withAlpha(6),
+                              Colors.transparent,
+                            ],
                           ),
-                          const SizedBox(height: 12),
+                        ),
+                      ),
+                    ),
 
-                          // Divider accent
-                          Opacity(
-                            opacity: _titleOpacity.value,
-                            child: Container(
-                              width: 48,
-                              height: 2,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(1),
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Colors.transparent,
-                                    Colors.white.withAlpha(160),
-                                    Colors.transparent,
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
+                    // ── Centered content ──
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Logo with breathing ring
+                          _buildLogo(),
+                          const SizedBox(height: 48),
+
+                          // Brand letters with shimmer
+                          _buildBrandName(),
+                          const SizedBox(height: 16),
 
                           // Tagline
                           SlideTransition(
-                            position: _taglineSlide,
+                            position: _tagSlide,
                             child: Opacity(
-                              opacity: _taglineOpacity.value,
-                              child: Text(
+                              opacity: _tagFade.value,
+                              child: const Text(
                                 'Salon Management',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyLarge
-                                    ?.copyWith(
-                                      color: Colors.white.withAlpha(175),
-                                      letterSpacing: 2,
-                                      fontWeight: FontWeight.w300,
-                                    ),
+                                style: TextStyle(
+                                  color: Color(0x99FFFFFF),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w300,
+                                  letterSpacing: 4,
+                                ),
                               ),
                             ),
                           ),
@@ -342,32 +263,14 @@ class _SplashPageState extends State<SplashPage>
                       ),
                     ),
 
-                    // Animated loading dots at bottom
+                    // Loading indicator at bottom
                     Positioned(
-                      bottom: 56,
+                      bottom: mq.padding.bottom + 48,
                       left: 0,
                       right: 0,
                       child: Opacity(
-                        opacity: _dotsOpacity.value,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _BouncingDot(
-                              delay: 0.0,
-                              controller: _pulseController,
-                            ),
-                            const SizedBox(width: 8),
-                            _BouncingDot(
-                              delay: 0.33,
-                              controller: _pulseController,
-                            ),
-                            const SizedBox(width: 8),
-                            _BouncingDot(
-                              delay: 0.66,
-                              controller: _pulseController,
-                            ),
-                          ],
-                        ),
+                        opacity: _dotsFade.value,
+                        child: const _WaveLoader(),
                       ),
                     ),
                   ],
@@ -379,38 +282,182 @@ class _SplashPageState extends State<SplashPage>
       ),
     );
   }
+
+  Widget _buildLogo() {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // Outer breathing ring
+        Transform.scale(
+          scale: _breatheScale.value,
+          child: Opacity(
+            opacity: (_ringExpand.value * 0.5).clamp(0.0, 0.5),
+            child: Container(
+              width: 140,
+              height: 140,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withAlpha(
+                    (_ringExpand.value * 40).round().clamp(0, 255),
+                  ),
+                  width: 1,
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Soft glow behind logo
+        Opacity(
+          opacity: _logoFade.value,
+          child: Container(
+            width: 110,
+            height: 110,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF1565C0)
+                      .withAlpha((_logoFade.value * 80).round()),
+                  blurRadius: 40,
+                  spreadRadius: 8,
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Logo image
+        Opacity(
+          opacity: _logoFade.value,
+          child: Transform.scale(
+            scale: _logoScale.value,
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withAlpha(30),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(40),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: ClipOval(
+                child: Image.asset('assets/snivra.png', fit: BoxFit.cover),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBrandName() {
+    return SizedBox(
+      height: 42,
+      child: ShaderMask(
+        shaderCallback: (bounds) {
+          return LinearGradient(
+            begin: Alignment(-1.0 + _shimmerPos.value, 0),
+            end: Alignment(-0.5 + _shimmerPos.value, 0),
+            colors: const [
+              Colors.white,
+              Color(0xFFB0D4FF),
+              Colors.white,
+            ],
+            stops: const [0.0, 0.5, 1.0],
+          ).createShader(bounds);
+        },
+        blendMode: BlendMode.srcIn,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(6, (i) {
+            return Transform.translate(
+              offset: Offset(0, _letterSlide[i].value),
+              child: Opacity(
+                opacity: _letterFade[i].value,
+                child: Text(
+                  _kBrandLetters[i],
+                  style: const TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 10,
+                    color: Colors.white,
+                    height: 1,
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+      ),
+    );
+  }
 }
 
-class _BouncingDot extends StatelessWidget {
-  const _BouncingDot({
-    required this.delay,
-    required this.controller,
-  });
+// ─── Wave loader ─────────────────────────────────────────────────────────────
 
-  final double delay;
-  final AnimationController controller;
+class _WaveLoader extends StatefulWidget {
+  const _WaveLoader();
+
+  @override
+  State<_WaveLoader> createState() => _WaveLoaderState();
+}
+
+class _WaveLoaderState extends State<_WaveLoader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: controller,
+      animation: _ctrl,
       builder: (context, _) {
-        final t = ((controller.value + delay) % 1.0);
-        final opacity = 0.25 + 0.75 * (t < 0.5 ? t * 2 : (1.0 - t) * 2);
-        final scale = 0.7 + 0.3 * (t < 0.5 ? t * 2 : (1.0 - t) * 2);
-        return Transform.scale(
-          scale: scale,
-          child: Opacity(
-            opacity: opacity,
-            child: Container(
-              width: 6,
-              height: 6,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(3, (i) {
+            final phase = _ctrl.value * 2 * pi + (i * pi / 3);
+            final y = sin(phase).abs() * 6;
+            final alpha = (0.3 + 0.7 * sin(phase).abs()).clamp(0.0, 1.0);
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Transform.translate(
+                offset: Offset(0, -y),
+                child: Opacity(
+                  opacity: alpha,
+                  child: Container(
+                    width: 5,
+                    height: 5,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
+            );
+          }),
         );
       },
     );
