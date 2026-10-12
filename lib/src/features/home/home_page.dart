@@ -1644,6 +1644,11 @@ class _AppDrawerState extends State<_AppDrawer>
                                   activeThumbColor: AppColors.success,
                                   inactiveTrackColor:
                                       AppColors.error.withAlpha(60),
+                                  inactiveThumbColor: AppColors.error,
+                                  trackOutlineColor:
+                                      WidgetStatePropertyAll(
+                                          Colors.transparent),
+                                  
                                   onChanged: (val) =>
                                       context.read<HomeBloc>().add(
                                             HomeSaloonOpenToggled(
